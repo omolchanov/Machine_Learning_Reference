@@ -1,7 +1,5 @@
 import numpy as np
 
-# from keras import models, layers, utils, backend as K
-
 
 def calculate_layer_output(i, w, layer_id, print_summary=False):
     # Shaped data: features(x)
