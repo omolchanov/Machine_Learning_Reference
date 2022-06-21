@@ -1,5 +1,9 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 from keras import models, layers, utils, backend as K
 from Visualizer import visualize_nn
+import numpy as np
 
 
 def present_model(model):
@@ -31,3 +35,35 @@ outputs = layers.Dense(name="Output", units=1, activation='relu')(h2)
 model_deep_nn = models.Model(inputs=inputs, outputs=outputs, name="Deep_NN_Keras")
 
 present_model(model_deep_nn)
+
+
+# define metrics
+def recall_func(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+
+def precision_func(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+
+def f1(y_true, y_pred):
+    precision = precision_func(y_true, y_pred)
+    recall = recall_func(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
+
+
+# compile the neural network
+model_deep_nn.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy',f1])
+
+# Generate the dataset
+X = np.random.rand(1000,5)
+y = np.random.choice([1,0], size=1000)
+
+# train/validation
+training = model_deep_nn.fit(x=X, y=y, batch_size=32, epochs=100, shuffle=False, verbose=1, validation_split=0.3)
