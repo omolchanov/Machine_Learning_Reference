@@ -4,3 +4,4 @@ numpy~=1.21.2
 keras~=2.9.0
 tensorflow~=2.9.1
 matplotlib~=3.5.2
+shap~=0.41.0

@@ -1,7 +1,7 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-from keras import models, layers, utils, backend as K
+from keras import models, layers, backend as K
 from Visualizer import Visualizer
 import numpy as np
 
@@ -15,12 +15,14 @@ def present_model(model):
 # Perceptron
 inputs = layers.Input(name="input", shape=(3,))
 outputs = layers.Dense(name="output", units=1, activation='linear')(inputs)
+
+# Model object
 model_perceptron = models.Model(inputs=inputs, outputs=outputs, name="Perceptron")
 
 
 # DeepNN
 # layer input
-n_features=5
+n_features = 5
 inputs = layers.Input(name="Input", shape=n_features)
 
 # hidden layer 1
@@ -32,9 +34,10 @@ h2 = layers.Dense(name="Layer2", units=5, activation='relu')(h1)
 # layer output
 outputs = layers.Dense(name="Output", units=1, activation='relu')(h2)
 
+# Model object
 model_deep_nn = models.Model(inputs=inputs, outputs=outputs, name="Deep_NN_Keras")
 
-present_model(model_perceptron)
+present_model(model_deep_nn)
 
 
 # define metrics
@@ -59,14 +62,25 @@ def f1(y_true, y_pred):
 
 
 # compile the neural network
-model_perceptron.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy',f1])
+model_deep_nn.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy', f1])
 
 # Generate the dataset
-X = np.random.rand(1000,3)
-y = np.random.choice([1,0], size=1000)
+X = np.random.rand(1000, 5)
+y = np.random.choice([1, 0], size=1000)
 
 # train/validation
-training = model_perceptron.fit(x=X, y=y, batch_size=32, epochs=100, shuffle=False, verbose=1, validation_split=0.3)
+training = model_deep_nn.fit(x=X, y=y, batch_size=32, epochs=100, shuffle=False, verbose=1, validation_split=0.3)
 
 # Visualising training results
 Visualizer.visualize_training_results(training)
+
+
+def regression_prediction(model):
+    x_test = np.random.rand(10, 5)
+    y_pred = model.predict(x_test)
+
+    for key, i in enumerate(y_pred):
+        print("X_features: %s, Predicted result: %s" % (x_test[key], y_pred[key][0]))
+
+
+regression_prediction(model_deep_nn)
