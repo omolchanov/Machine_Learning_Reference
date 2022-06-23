@@ -64,12 +64,17 @@ def f1(y_true, y_pred):
 # compile the neural network
 model_deep_nn.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy', f1])
 
-# Generate the dataset
+# Generate the dataset for regression
+# X = np.random.rand(1000, 5)
+# y = np.random.uniform(low=0, high=0.2, size=1000)
+
+# Generate the dataset for binary classification
 X = np.random.rand(1000, 5)
 y = np.random.choice([1, 0], size=1000)
 
+
 # train/validation
-training = model_deep_nn.fit(x=X, y=y, batch_size=32, epochs=100, shuffle=False, verbose=1, validation_split=0.3)
+training = model_deep_nn.fit(x=X, y=y, batch_size=32, epochs=100, shuffle=False, verbose=0, validation_split=0.3)
 
 # Visualising training results
 Visualizer.visualize_training_results(training)
@@ -83,4 +88,14 @@ def regression_prediction(model):
         print("X_features: %s, Predicted result: %s" % (x_test[key], y_pred[key][0]))
 
 
-regression_prediction(model_deep_nn)
+def classification(model, threshold):
+    x_test = np.random.rand(10, 5)
+    y_pred = model.predict(x_test)
+
+    for key, i in enumerate(y_pred):
+        result = np.where(y_pred[key][0] > threshold, 1, 0)
+        print("X_features: %s, Predicted probability: %s, Result: %s" % (x_test[key], y_pred[key][0], result))
+
+
+classification(model_deep_nn, 0.5)
+# regression_prediction(model_deep_nn)
