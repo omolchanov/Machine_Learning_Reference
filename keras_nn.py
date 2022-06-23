@@ -5,25 +5,9 @@ from keras import models, layers, backend as K
 from Visualizer import Visualizer
 import numpy as np
 
-
-def present_model(model):
-    # Summary and visualization
-    model.summary()
-    Visualizer.visualize_nn_structure(model, description=True, figsize=(6, 6))
-
-
-# Perceptron
-inputs = layers.Input(name="input", shape=(3,))
-outputs = layers.Dense(name="output", units=1, activation='linear')(inputs)
-
-# Model object
-model_perceptron = models.Model(inputs=inputs, outputs=outputs, name="Perceptron")
-
-
 # DeepNN
 # layer input
-n_features = 5
-inputs = layers.Input(name="Input", shape=n_features)
+inputs = layers.Input(name="Input", shape=5)
 
 # hidden layer 1
 h1 = layers.Dense(name="Layer1", units=5, activation='relu')(inputs)
@@ -35,9 +19,9 @@ h2 = layers.Dense(name="Layer2", units=5, activation='relu')(h1)
 outputs = layers.Dense(name="Output", units=1, activation='relu')(h2)
 
 # Model object
-model_deep_nn = models.Model(inputs=inputs, outputs=outputs, name="Deep_NN_Keras")
+model = models.Model(inputs=inputs, outputs=outputs, name="Deep_NN_Keras")
 
-present_model(model_deep_nn)
+Visualizer.visualize_nn_structure(model)
 
 
 # define metrics
@@ -62,7 +46,7 @@ def f1(y_true, y_pred):
 
 
 # compile the neural network
-model_deep_nn.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy', f1])
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy', f1])
 
 # Generate the dataset for regression
 # X = np.random.rand(1000, 5)
@@ -74,7 +58,7 @@ y = np.random.choice([1, 0], size=1000)
 
 
 # train/validation
-training = model_deep_nn.fit(x=X, y=y, batch_size=32, epochs=100, shuffle=False, verbose=0, validation_split=0.3)
+training = model.fit(x=X, y=y, batch_size=32, epochs=100, shuffle=False, verbose=1, validation_split=0.3)
 
 # Visualising training results
 Visualizer.visualize_training_results(training)
@@ -97,5 +81,5 @@ def classification(model, threshold):
         print("X_features: %s, Predicted probability: %s, Result: %s" % (x_test[key], y_pred[key][0], result))
 
 
-classification(model_deep_nn, 0.5)
+classification(model, 0.5)
 # regression_prediction(model_deep_nn)
