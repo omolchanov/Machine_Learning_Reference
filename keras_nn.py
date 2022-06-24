@@ -21,6 +21,8 @@ outputs = layers.Dense(name="Output", units=1, activation='relu')(h2)
 # Model object
 model = models.Model(inputs=inputs, outputs=outputs, name="Deep_NN_Keras")
 
+# Visualize and get model summary
+model.summary()
 Visualizer.visualize_nn_structure(model)
 
 
@@ -81,5 +83,5 @@ def classification(model, threshold):
         print("X_features: %s, Predicted probability: %s, Result: %s" % (x_test[key], y_pred[key][0], result))
 
 
-classification(model, 0.5)
+classification(model, 0.8)
 # regression_prediction(model_deep_nn)
