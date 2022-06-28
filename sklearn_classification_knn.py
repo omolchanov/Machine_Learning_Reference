@@ -19,7 +19,7 @@ y = np.array([0, 0, 0, 1, 1, 1])
 
 # Classify the dataset with K-neighboors algorithm
 def classify_KNN(features, labels, x_pred):
-    model = KNeighborsClassifier(n_neighbors=2)
+    model = KNeighborsClassifier(n_neighbors=1)
 
     # Split the dataset (features, labels) onto training and test sets
     x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=27)
@@ -31,7 +31,7 @@ def classify_KNN(features, labels, x_pred):
     prediction = model.predict(x_test)
 
     # Evaluating the model
-    print('KNN Accuracy score: %s %', accuracy_score(prediction, y_test))
+    print('KNN Accuracy score: %s', accuracy_score(prediction, y_test))
     print('KNN Confusion matrix: \n', confusion_matrix(prediction, y_test))
 
     # Making a prediction
@@ -41,7 +41,12 @@ def classify_KNN(features, labels, x_pred):
     return y_pred
 
 
-x_pred = np.array([[0, 0], [10, 20], [3.5, 7.2]])
+x_pred = np.array([
+    [0, 0],
+    [10, 20],
+    [3.5, 7.2],
+    [6.9, 8]
+])
 y_pred = classify_KNN(X, y, x_pred)
 
 
@@ -52,7 +57,6 @@ plt.ylabel("Y")
 
 x_data = np.concatenate((X, x_pred))
 y_data = np.concatenate((y, y_pred))
-
 
 # Dataset visualization
 # Label '0' is marked with black color
