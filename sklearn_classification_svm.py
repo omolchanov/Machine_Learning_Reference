@@ -4,6 +4,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score, classification_rep
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 # Training dataset (features and labels)
 X = np.array([
     [5, 5],
@@ -20,7 +21,7 @@ y = np.array([0, 0, 0, 1, 1, 1])
 model = SVC(kernel='linear')
 
 # Split the dataset (features and labels) onto trainings and test sets
-x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.20)
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.50)
 
 # Train the model
 model.fit(x_train, y_train)
@@ -31,7 +32,7 @@ prediction = model.predict(x_test)
 # Evaluating the model
 print('SVC Accuracy score: ', accuracy_score(prediction, y_test))
 print('SVC Confusion matrix: \n', confusion_matrix(prediction, y_test))
-# print('SVC Classification report: \n', classification_report(prediction, y_test))
+print('SVC Classification report: \n', classification_report(prediction, y_test))
 
 # Making a prediction
 x_pred = np.array([
@@ -61,7 +62,7 @@ y_data = np.concatenate((y, y_pred))
 plt.scatter(x_data[:, 0], x_data[:, 1], c=y_data)
 
 for i, txt in enumerate(x_data):
-    plt.annotate(str(y_data[i]) + ' ' + str(x_data[i]), (x_data[i]))
+    plt.annotate(str(x_data[i]), (x_data[i]))
 
 # Classification boundary visualization
 # https://medium.com/geekculture/svm-classification-with-sklearn-svm-svc-how-to-plot-a-decision-boundary-with-margins-in-2d-space-7232cb3962c0
