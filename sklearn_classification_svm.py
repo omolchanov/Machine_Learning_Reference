@@ -49,7 +49,7 @@ print('SVC Prediction - Features: %s | Prediction Result: %s' % (str(x_pred).rep
 
 
 # Visualizng the dataset and the predictions
-plt.title('Classification with SVC algorithm')
+plt.title('Classification with linear SVM algorithm')
 plt.xlabel("X")
 plt.ylabel("Y")
 
