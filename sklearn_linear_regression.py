@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -13,7 +14,7 @@ X = np.array([
     [5.1, 47],
     [3.2, 27],
     [8.5, 75],
-    [3.5, 30]
+    [3.5, 30],
 ])
 
 df = pd.DataFrame(X)
@@ -24,7 +25,7 @@ print(df.corr(), '\n')
 print(df.describe(), '\n')
 
 
-# Dividing the dataset on targets and features
+# Dividing the dataset
 x = df[0].values.reshape(-1, 1)
 y = df[1].values.reshape(-1, 1)
 
@@ -66,11 +67,9 @@ print('Linear Regression predictions \n Features: %s \n Prediction Result: %s' %
 
 
 # Visualizing the dataset and predictions
-plt.title('Linear Regression')
-plt.xlabel('X')
-plt.ylabel('Y')
+x_data = np.concatenate((x, x_pred))
+y_data = np.concatenate((y, y_pred))
 
-plt.scatter(X[:, 0], X[:, 1])
-plt.scatter(x_pred, y_pred, c='r')
-
+plt.figure()
+sns.regplot(x=x_data, y=y_data, data=df).set(title='Unvariative Linear Regression')
 plt.show()
