@@ -9,41 +9,75 @@ from keras import models, layers, backend as K
 from Visualizer import Visualizer
 import numpy as np
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
 # NN Configuration
 NAME = 'Keras_Classification'
 OPTIMIZER = 'adam'
 LOSS = 'binary_crossentropy'
-EPOCHS = 200
-BATCH_SIZE = 16
-VALIDATION_SPLIT = 0.1
+EPOCHS = 100
+BATCH_SIZE = 32
+VALIDATION_SPLIT = 0.3
 THRESHOLD = 250
 
 
 df = pd.read_csv('assets/churn-rate.csv')
 
-X = df[[
-        'account length',
-        'number vmail messages',
-        'total day minutes',
-        'total eve minutes',
-        'total night minutes',
-        'total intl minutes'
-]].copy()
+numerical_columns = [
+    'total day minutes',
+    'total eve minutes',
+    'total night minutes',
+    'total intl minutes',
+    'total day charge',
+    'total eve charge',
+    'total night charge',
+    'total intl charge'
+]
 
-for i, name in enumerate(['total day minutes', 'total eve minutes', 'total night minutes', 'total intl minutes']):
-    X[name] = X[name].str.replace(",", ".").astype('float64')
+for i, name in enumerate(numerical_columns):
+    df[name] = df[name].str.replace(",", ".").astype('float64')
+
+X_minutes = [
+    'total day minutes',
+    'total eve minutes',
+    'total night minutes',
+    'total intl minutes'
+]
+
+X_calls = [
+    'total day calls',
+    'total eve calls',
+    'total night calls',
+    'total intl calls'
+]
+
+X_charges = [
+    'total day charge',
+    'total eve charge',
+    'total night charge',
+    'total intl charge'
+]
 
 y = df['churn'].map({False: 0, True: 1})
 
-inputs = layers.Input(name="Input", shape=6)
-h1 = layers.Dense(name="Layer1", units=6, activation='relu')(inputs)
+# Measure correlation between different sets of independent variables
+# corr_minutes = df[X_minutes].copy().join(y).corr()
+# corr_calls = df[X_calls].copy().join(y).corr()
+corr_charges = df[X_charges].copy().join(y).corr()  # The strongest correlation between charges and churn
+
+X = df[X_charges]
+
+inputs = layers.Input(name="Input", shape=4)
+h1 = layers.Dense(name="Layer1", units=4, activation='relu')(inputs)
 # h2 = layers.Dense(name="Layer2", units=6, activation='relu')(h1)
 outputs = layers.Dense(name="Output", units=1, activation='relu')(h1)
 
 model = models.Model(inputs=inputs, outputs=outputs, name=NAME)
 
 # model.summary()
-Visualizer.visualize_nn_structure(model)
+# Visualizer.visualize_nn_structure(model)
 
 
 # define metrics
@@ -85,10 +119,10 @@ training = model.fit(
 Visualizer.visualize_training_results(training)
 
 x_pred = np.array([
-    [128, 24, 265, 200, 245, 12],
-    [200, 48, 365, 300, 345, 40],
-    [1, 1, 1, 1, 1, 0],
-    [100, 12, 130, 100, 100, 4]
+    [265, 200, 245, 12],
+    [365, 300, 345, 40],
+    [1, 1, 1, 0],
+    [130, 100, 100, 4]
 ])
 
 y_pred = model.predict(x_pred)
