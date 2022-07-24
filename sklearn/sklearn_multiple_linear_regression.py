@@ -11,7 +11,7 @@ import seaborn as sns
 pd.set_option("expand_frame_repr", False)
 
 # Loading the dataset
-df = pd.read_csv('assets/petrol_consumption.csv')
+df = pd.read_csv('../assets/petrol_consumption.csv')
 print(df.describe().round(2).T)
 
 # Dataset visualization. The independent variables and dependent

@@ -14,7 +14,7 @@ pd.set_option("expand_frame_repr", False)
 pd.set_option('display.max_rows', None)
 
 
-df = pd.read_csv('assets/breast_dataset.csv')
+df = pd.read_csv('../assets/breast_dataset.csv')
 
 # Separate features and target variable
 X = df.iloc[:, 2:-1].values
