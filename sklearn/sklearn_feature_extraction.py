@@ -1,11 +1,15 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.feature_selection import VarianceThreshold
-from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.feature_selection import VarianceThreshold, SelectFromModel
 from scipy.spatial.distance import euclidean
+from sklearn.datasets import make_classification
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import cross_val_score
 
 import numpy as np
 import pandas as pd
@@ -62,8 +66,6 @@ def is_data_normally_distributed():
     # scaler = MinMaxScaler()
     # scaled_data = scaler.fit_transform(data.reshape(1, -1))
 
-    print(x)
-
     plt.plot(x, y)
     plt.show()
 
@@ -100,6 +102,25 @@ def select_features_variance_threshold():
     print(X_shaped.shape)
 
 
-# is_data_normally_distributed()
-# plot_qq()
+def select_features_modeling():
+    X, y  = make_classification()
 
+    model_lr = LogisticRegression(solver='lbfgs', random_state=0)
+    print('Logisitic Regression score: ', cross_val_score(model_lr, X, y, scoring="neg_log_loss", cv=5).mean().round(3))
+
+    model_rf = RandomForestClassifier(n_estimators=10)
+    print('RF score: ', cross_val_score(model_rf, X, y, scoring="neg_log_loss", cv=5).mean().round(3))
+
+    model_rf.fit(X, y)
+    sfm = SelectFromModel(estimator=model_rf, threshold=0.1, prefit=True)
+    important_features = sfm.transform(X)
+
+    # print(important_features.shape)
+
+    pipeline = make_pipeline(SelectFromModel(estimator=model_rf), model_lr)
+    print('LR pipeline: ', cross_val_score(pipeline, X, y, scoring="neg_log_loss", cv=5).mean())
+
+
+is_data_normally_distributed()
+plot_qq()
+select_features_modeling()
