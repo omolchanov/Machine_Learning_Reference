@@ -1,12 +1,12 @@
-import warnings
-warnings.filterwarnings('ignore')
-
 from sklearn.metrics import mean_absolute_error
 
 import pandas as pd
 import numpy as np
 
 import matplotlib.pyplot as plt
+
+import warnings
+warnings.filterwarnings('ignore')
 
 # Configure Pandas
 pd.set_option("display.precision", 2)
@@ -42,6 +42,17 @@ def calculate_moving_average(x, n=24):
     Manual: https://www.statisticshowto.com/probability-and-statistics/statistics-definitions/moving-average/
     """
     print(np.average(x[-n:]))
+
+
+def calculate_weighted_average(x, weights, n=24):
+    assert (np.sum(weights).round(1) == 1), 'Weights sum should equal to 1. Now is %s' % (np.sum(weights))
+
+    result = 0
+
+    for i in range(len(weights)):
+        result += np.average(x[-n:]) * weights[i]
+
+    print(result.__round__(0))
 
 
 def plot_moving_average(series, window=24, plot_bonds=False, plot_anomalies=False):
@@ -88,6 +99,71 @@ def plot_moving_average(series, window=24, plot_bonds=False, plot_anomalies=Fals
     plt.show()
 
 
-plot_moving_average(ads, plot_bonds=True, plot_anomalies=True)
-calculate_moving_average(ads)
-plotting_data()
+def plot_exponential_smoothing(x, a):
+    """
+    a - smoothing parameter
+    """
+
+    result = [x.iloc[0]]
+
+    for n in range(1, len(x)):
+        result.append(a * x.iloc[n] + (1 - a) * result[n - 1])
+
+    plt.figure(figsize=(15, 7))
+
+    plt.plot(x.values, 'b', label='Actual values')
+    plt.plot(result, 'g', label='Alpha {}'.format(a))
+
+    plt.title('Exponential Smoothing')
+    plt.legend()
+
+    plt.axis()
+    plt.grid(True)
+    plt.show()
+
+
+def plot_double_exponential_smoothing(x, a, b):
+    """
+    a - smoothing parameter for level
+    b - smoothing parameter for trend
+    """
+
+    result = [x.iloc[0]]
+
+    for n in range(1, len(x) + 1):
+        if n == 1:
+            level, trend = x.iloc[0], x.iloc[1] - x.iloc[0]
+
+        # Forecasting
+        if n >= len(x):
+            value = result[-1]
+
+        else:
+            value = x.iloc[n]
+
+        last_level, level = level, a * value + (1 - a) * (level + trend)
+        trend = b * (level - last_level) + (1 - b) * trend
+
+        result.append(level + trend)
+
+    plt.figure(figsize=(15, 7))
+
+    plt.plot(x.values, 'b', label='Actual values')
+    plt.plot(result, 'g', label='Alpha: {} Beta: {}'.format(a, b))
+
+    plt.title('Double Exponential Smoothing')
+    plt.legend()
+
+    plt.axis()
+    plt.grid(True)
+    plt.show()
+
+
+# plotting_data()
+
+# calculate_weighted_average(ads, [0.6, 0.3, 0.1])
+# calculate_moving_average(ads)
+
+# plot_moving_average(currency, plot_bonds=True, plot_anomalies=True)
+# plot_exponential_smoothing(ads, 0.05)
+plot_double_exponential_smoothing(currency, 0.02, 0.9)
