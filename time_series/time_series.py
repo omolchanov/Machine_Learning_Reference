@@ -159,11 +159,11 @@ def plot_double_exponential_smoothing(x, a, b):
     plt.show()
 
 
-# plotting_data()
+plotting_data()
 
-# calculate_weighted_average(ads, [0.6, 0.3, 0.1])
-# calculate_moving_average(ads)
+calculate_weighted_average(ads, [0.6, 0.3, 0.1])
+calculate_moving_average(ads)
 
-# plot_moving_average(currency, plot_bonds=True, plot_anomalies=True)
-# plot_exponential_smoothing(ads, 0.05)
+plot_moving_average(currency, plot_bonds=True, plot_anomalies=True)
+plot_exponential_smoothing(ads, 0.05)
 plot_double_exponential_smoothing(currency, 0.02, 0.9)
