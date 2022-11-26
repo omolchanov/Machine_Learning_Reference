@@ -25,7 +25,6 @@ data.columns = ['y']
 for i in range(6, 25):
     data['lag_{}'.format(i)] = data['y'].shift(periods=i)
 
-
 def fit_model_with_lag():
     # Composing the dataset for the fitting
     X = data.dropna().drop(['y'], axis=1)
@@ -136,5 +135,6 @@ def plot_model_coefficients(model, X_train):
     plt.show()
 
 
-fit_model_with_lag()
-fit_advanced_model()
+if __name__ == '__main__':
+    fit_model_with_lag()
+    fit_advanced_model()
