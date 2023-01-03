@@ -2,7 +2,6 @@ from sklearn.ensemble import AdaBoostRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score
-
 from sklearn.datasets import make_regression
 
 import matplotlib.pyplot as plt
