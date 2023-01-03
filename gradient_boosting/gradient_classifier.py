@@ -7,7 +7,7 @@ from sklearn.datasets import make_classification
 import numpy as np
 
 # Prepare the dataset
-X, y  = make_classification(n_samples=1000)
+X, y = make_classification(n_samples=1000)
 
 model = GradientBoostingClassifier(n_estimators=10)
 
