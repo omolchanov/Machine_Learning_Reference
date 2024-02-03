@@ -5,14 +5,17 @@ import pandas as pd
 
 from sktime.datasets import load_airline
 from sktime.datasets import load_longley
+from sktime.utils._testing.hierarchical import _bottom_hier_datagen, _make_hierarchical
 
-from sktime.utils.plotting import plot_series
+from sktime.split import temporal_train_test_split
+from sktime.performance_metrics.forecasting import mean_absolute_percentage_error
 
 from sktime.forecasting.naive import NaiveForecaster
 from sktime.forecasting.var import VAR
 from sktime.forecasting.arima import ARIMA
 from sktime.forecasting.theta import ThetaForecaster
 
+from sktime.utils.plotting import plot_series
 from matplotlib import pyplot as plt
 
 # Configuring pandas
@@ -141,7 +144,50 @@ def propabilistic_forecast(fh):
     plt.show()
 
 
+def hierachical_forecast(fh):
+    y_bhd = _bottom_hier_datagen(no_levels=2)
+    y = _make_hierarchical(n_columns=3)
+
+    fh = range(1, fh + 1)
+    fc = ARIMA()
+
+    fc.fit(y, fh=fh)
+    y_pred = fc.predict()
+
+    print(y_pred)
+
+
+def evaluating_model():
+    y = load_airline()
+
+    y_train, y_test = temporal_train_test_split(y, test_size=12)
+
+    fh = range(1, 12 + 1)
+
+    fcs = [
+        NaiveForecaster(sp=12),
+        ARIMA()
+    ]
+
+    for fc in fcs:
+        fc.fit(y_train, fh=fh)
+        y_pred = fc.predict()
+
+        mape = mean_absolute_percentage_error(y_test, y_pred, symmetric=False)
+        print(fc, mape.__round__(3))
+
+        plot_series(
+            y_train,
+            y_test, y_pred,
+            labels=['y_train', 'y_test', 'y_pred'],
+            title=[fc, mape.__round__(3)]
+        )
+        plt.show()
+
+
 # simple_pseudo_classification()
 # airline_naive_forecast()
 # multivariative_forecast(5)
-propabilistic_forecast(6)
+# propabilistic_forecast(6)
+# hierachical_forecast(3)
+evaluating_model()
