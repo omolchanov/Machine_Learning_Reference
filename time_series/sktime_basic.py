@@ -7,13 +7,16 @@ from sktime.datasets import load_airline
 from sktime.datasets import load_longley
 from sktime.utils._testing.hierarchical import _bottom_hier_datagen, _make_hierarchical
 
-from sktime.split import temporal_train_test_split
+from sktime.split import temporal_train_test_split, ExpandingWindowSplitter
 from sktime.performance_metrics.forecasting import mean_absolute_percentage_error
+
+from sktime.forecasting.model_evaluation import evaluate
 
 from sktime.forecasting.naive import NaiveForecaster
 from sktime.forecasting.var import VAR
-from sktime.forecasting.arima import ARIMA
+from sktime.forecasting.arima import ARIMA, AutoARIMA
 from sktime.forecasting.theta import ThetaForecaster
+from sktime.forecasting.ets import AutoETS
 
 from sktime.utils.plotting import plot_series
 from matplotlib import pyplot as plt
@@ -158,6 +161,10 @@ def hierachical_forecast(fh):
 
 
 def evaluating_model():
+    """
+    Train/test split. Eveluating different forecasters
+    """
+
     y = load_airline()
 
     y_train, y_test = temporal_train_test_split(y, test_size=12)
@@ -166,7 +173,8 @@ def evaluating_model():
 
     fcs = [
         NaiveForecaster(sp=12),
-        ARIMA()
+        ARIMA(),
+        AutoETS()
     ]
 
     for fc in fcs:
@@ -185,9 +193,74 @@ def evaluating_model():
         plt.show()
 
 
+def updating_data_for_model():
+    y = load_airline()
+    y_1957Dec = y[:-36]
+
+    fh = range(1, 6 + 1)
+
+    fc = AutoETS(auto=True, sp=12, n_jobs=-1)
+    fc.fit(y_1957Dec)
+
+    y_pred1957Dec = fc.predict(fh)
+
+    # New data was observed
+    y_1958Jan = y[-36: -30]
+    fc.update(y_1958Jan, update_params=False)
+
+    y_1958Jan_pred = fc.predict(fh)
+    print(y_1958Jan_pred)
+
+    plot_series(
+        y[:-30], y_pred1957Dec, y_1958Jan_pred,
+        labels=['y_1957Dec', 'y_pred1957Dec', 'y_1958Jan_pred']
+    )
+    plt.show()
+
+
+def cross_validate_rolling_forecasters():
+    y = load_airline()
+
+    fh = range(1, 12 + 1)
+
+    forecasters = [
+        NaiveForecaster(sp=12, strategy='last'),
+        AutoARIMA(sp=12, suppress_warnings=True),
+        ARIMA()
+    ]
+
+    for fc in forecasters:
+        cv = ExpandingWindowSplitter(step_length=12, fh=fh, initial_window=72)
+
+        df = evaluate(forecaster=fc, y=y, cv=cv, strategy="refit", return_data=True)
+
+        mean_mape = df['test_MeanAbsolutePercentageError'].mean().__round__(2)
+        mean_fit_time = df['fit_time'].mean().__round__(4)
+
+        print(fc, mean_mape, mean_fit_time)
+        print(df.iloc[:, :5])
+
+        # Plotting
+        plot_series(
+            y,
+            df["y_pred"].iloc[0],
+            df["y_pred"].iloc[1],
+            df["y_pred"].iloc[2],
+            df["y_pred"].iloc[3],
+            df["y_pred"].iloc[4],
+            df["y_pred"].iloc[5],
+            labels=["y_true"] + ["y_pred (Backtest " + str(x) + ")" for x in range(6)],
+            title=[fc, mean_mape, mean_fit_time]
+        )
+
+        plt.show()
+
+
 # simple_pseudo_classification()
 # airline_naive_forecast()
 # multivariative_forecast(5)
 # propabilistic_forecast(6)
 # hierachical_forecast(3)
-evaluating_model()
+# evaluating_model()
+# updating_data_for_model()
+cross_validate_rolling_forecasters()
