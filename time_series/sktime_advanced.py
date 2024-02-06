@@ -9,7 +9,11 @@ from sktime.forecasting.base import ForecastingHorizon
 
 from sktime.performance_metrics.forecasting import MeanAbsolutePercentageError, MeanSquaredError
 from sktime.split import temporal_train_test_split, SlidingWindowSplitter, ExpandingWindowSplitter
-from sktime.forecasting.compose import make_reduction, RecursiveTabularRegressionForecaster
+from sktime.forecasting.compose import (
+    make_reduction,
+    RecursiveTabularRegressionForecaster,
+    EnsembleForecaster
+)
 from sktime.forecasting.model_selection import ForecastingGridSearchCV
 
 from sklearn.neighbors import KNeighborsRegressor
@@ -51,19 +55,15 @@ def get_best_params(fc):
     y_train, y_test = temporal_train_test_split(y, test_size=12)
 
     fh = range(1, 12 + 1)
-    param_grid = {}
+    param_grid = {
+        'window_length': [7, 12, 15]
+    }
 
     if isinstance(fc, NaiveForecaster):
-        param_grid = {
-            'strategy': ['last', 'mean', 'drift'],
-            'window_length': [7, 12, 15]
-        }
+        param_grid['strategy'] = ['last', 'mean', 'drift']
 
     if isinstance(fc, RecursiveTabularRegressionForecaster):
-        param_grid = {
-            'window_length': [7, 12, 15],
-            'estimator__n_neighbors': range(1, 5 + 1)
-        }
+        param_grid['estimator__n_neighbors'] = range(1, 5 + 1)
 
     # cv = SlidingWindowSplitter(initial_window=72, window_length=20)
     cv = ExpandingWindowSplitter(step_length=12, fh=fh, initial_window=72)
@@ -92,5 +92,36 @@ def get_best_params(fc):
     plt.show()
 
 
+def ensemble_forecaster():
+    y = load_airline()
+    y_train, y_test = temporal_train_test_split(y, test_size=36)
+
+    fh = range(1, 36 + 1)
+
+    fc = EnsembleForecaster(
+        [
+            ('arima', ARIMA()),
+            ('auto_arima', AutoARIMA(sp=12)),
+            ('naive', NaiveForecaster(sp=12))
+        ],
+    )
+
+    fc.fit(y_train)
+    y_pred = fc.predict(fh)
+
+    mape = MeanAbsolutePercentageError().evaluate(y_test, y_pred, symmetric=False)
+    print('MAPE: %.3f' % mape)
+
+    plot_series(
+        y_train, y_test, y_pred,
+        labels=['y_train', 'y_test', 'y_pred'],
+    )
+    plt.show()
+
+
+reduction()
+
 fc = make_reduction(KNeighborsRegressor(), strategy='recursive')
 get_best_params(fc)
+
+ensemble_forecaster()
