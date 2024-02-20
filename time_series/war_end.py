@@ -1,7 +1,16 @@
+"""
+War_end.py
+Time series forecaster predicting the end of war basing on utilizing tanks and APCs.
+The data is provided by Ukrainian Ministry of Defence
+"""
+
 from sktime.forecasting.naive import NaiveForecaster
 from sktime.forecasting.exp_smoothing import ExponentialSmoothing
-from sktime.forecasting.tbats import TBATS
 
+from sktime.split import temporal_train_test_split
+from sktime.performance_metrics.forecasting import mean_absolute_percentage_error
+
+from sktime.utils.plotting import plot_series
 from matplotlib import pyplot as plt
 
 import pandas as pd
@@ -24,33 +33,55 @@ df.index = pd.PeriodIndex(df['date'], freq='M')
 df = df[['tank', 'APC']]
 df.columns = ['tank_lost', 'APC_lost']
 
-# Finding the delta and grouping data by month
+# Finding the delta of montly loses and grouping data by month
 df = df.diff().fillna(df).astype(int).groupby('date').sum()
 
 # Setting the data on equipment before invasion and on storage
-BEFORE_INVASION = {'tank': 3300, 'APC': 15000}
-ON_STORAGE = {'tank': 4000, 'APC': 1500}
+# Sources:
+# https://www.minusrus.com/ru
+# https://www.rbc.ua/ukr/news/chi-spravdi-rosiyi-nezlichenni-zapasi-zbroyi-1694512803.html
+# https://www.unian.net/weapons/rossiya-imeet-na-hranenii-eshche-okolo-9-tysyach-bbm-analitiki-12432696.html
+
+BEFORE_INVASION = {'tank': 3300, 'APC': 13758}
+ON_STORAGE = {'tank': 5000, 'APC': 8917}
 
 
 def find_correlation():
+    """
+    Finds the correlation betweem loses of tanks and APCs
+    """
     corr = df['tank_lost'].corr(df['APC_lost'])
-    print(corr)
+    print('\nCorrelation: ', corr)
 
 
+# Splitting the data
 X = pd.DataFrame(df.index)
 
+# Setting the period range for forecasting
 start_fh = df.index[-1] + 1
-fh = pd.period_range(start=start_fh, freq='M', periods=18)
+fh = pd.period_range(start=start_fh, freq='M', periods=36)
 
-fc = TBATS(sp=12)
+# Selecting a TS model for forecasting
+fc = NaiveForecaster(sp=12)
 
+# Fitting the model and predicting
 fc.fit(df, X=X, fh=fh)
 df_pred = fc.predict(X=X, fh=fh)
 
-df = pd.concat([df, df_pred])
+# Merging the dataframe with exisiting data and the dataframe with predictions
+df_f = pd.concat([df, df_pred])
 
 
 def find_end_period(df, eq):
+    """
+    Calculates remnants of military equipment basing on the monthly loses. The function is stopped when
+    negative or zero balance reached.
+
+    :param df: dataframe with exisitng and predicted data
+    :param eq: title of the equimpment [tank, APC]
+    :return: month when supplements of the particular equipment ran out
+    """
+
     if len(df.columns) > 2:
         df.drop(columns=df.columns[-1],  axis=1,  inplace=True)
 
@@ -67,6 +98,14 @@ def find_end_period(df, eq):
 
 
 def plot_results(df, end_period, eq):
+    """
+    Plots loses of the equipment (existing and predicted) and storage balance
+
+    :param df: dataframe with exisitng and predicted data
+    :param end_period: month when supplements of the particular equipment ran out
+    :param eq: title of the equimpment [tank, APC]
+    """
+
     df.index = df.index.astype('str')
     x = list(df.index.unique())
 
@@ -83,14 +122,54 @@ def plot_results(df, end_period, eq):
 
 
 def predict():
+    """
+    Predicts the end period of war basing on balance of military equipment
+    """
+
+    find_correlation()
+
     equipment = ['tank', 'APC']
 
     for eq in equipment:
-        df_eq, end_period = find_end_period(df, eq)
+        df_eq, end_period = find_end_period(df_f, eq)
         plot_results(df_eq, end_period, eq)
 
         print('\nEnd Period: ', end_period)
         print(df_eq)
 
 
+def evaluate(models):
+    """
+    Evaluates different TS forecasters using MAE
+    :param models: list of TS forecasters
+    """
+
+    y = df[['tank_lost']]
+
+    y_train, y_test = temporal_train_test_split(y, test_size=6)
+    fh = range(1, 6 + 1)
+
+    for m in models:
+        print('\nModel: ', m)
+
+        m.fit(y_train, fh=fh)
+        y_pred = m.predict()
+
+        mae = mean_absolute_percentage_error(y_test, y_pred, symmetric=False)
+        print('MAE: %.3f' % mae)
+
+        for c in y:
+            plot_series(
+                y_train[c],
+                y_test[c], y_pred[c],
+                labels=['y_train', 'y_test', 'y_pred'],
+                title=[c, m, mae.__round__(3)]
+            )
+            plt.show()
+
+
 predict()
+evaluate([
+    NaiveForecaster(sp=12),
+    ExponentialSmoothing(sp=12)
+])
