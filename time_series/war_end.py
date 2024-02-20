@@ -5,7 +5,6 @@ The data is provided by Ukrainian Ministry of Defence
 """
 
 from sktime.forecasting.naive import NaiveForecaster
-from sktime.forecasting.exp_smoothing import ExponentialSmoothing
 
 from sktime.split import temporal_train_test_split
 from sktime.performance_metrics.forecasting import mean_absolute_percentage_error
@@ -24,6 +23,7 @@ pd.set_option('display.float_format', lambda x: '%.i' % x)
 
 plt.rc('font', size=10)
 
+# Source: https://www.kaggle.com/datasets/piterfm/2022-ukraine-russian-war
 df = pd.read_csv('../assets/russia_losses_equipment.csv')
 
 # Setting date as index
@@ -51,7 +51,7 @@ def find_correlation():
     Finds the correlation betweem loses of tanks and APCs
     """
     corr = df['tank_lost'].corr(df['APC_lost'])
-    print('\nCorrelation: ', corr)
+    print('\nCorrelation: %.3f' % corr)
 
 
 # Splitting the data
@@ -124,18 +124,27 @@ def plot_results(df, end_period, eq):
 def predict():
     """
     Predicts the end period of war basing on balance of military equipment
+    :return war_end: the month when the war is predicted to finish
     """
 
     find_correlation()
 
     equipment = ['tank', 'APC']
+    end_periods = []
 
     for eq in equipment:
         df_eq, end_period = find_end_period(df_f, eq)
         plot_results(df_eq, end_period, eq)
 
-        print('\nEnd Period: ', end_period)
+        print('\n{} | End Period: {}'. format(eq, end_period))
         print(df_eq)
+
+        end_periods.append(end_period)
+
+    war_end = max(end_periods)
+    print('\nPREDICTED END OF THE WAR: %s' % war_end)
+
+    return war_end
 
 
 def evaluate(models):
@@ -144,7 +153,7 @@ def evaluate(models):
     :param models: list of TS forecasters
     """
 
-    y = df[['tank_lost']]
+    y = df[['tank_lost', 'APC_lost']]
 
     y_train, y_test = temporal_train_test_split(y, test_size=6)
     fh = range(1, 6 + 1)
@@ -169,7 +178,4 @@ def evaluate(models):
 
 
 predict()
-evaluate([
-    NaiveForecaster(sp=12),
-    ExponentialSmoothing(sp=12)
-])
+# evaluate([NaiveForecaster(sp=12)])
