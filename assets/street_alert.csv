@@ -43,7 +43,6 @@ tuesday,morning,Подол
 tuesday,day,Старый город
 tuesday,day,Нижняя Словянка
 tuesday,day,Муниципальный рынок
-tuesday,day,Набережная
 tuesday,day,Центр
 tuesday,day,Подол
 tuesday,day,Петроцентр
@@ -64,7 +63,6 @@ monday,day,Центр
 monday,day,Агрономичное
 monday,day,Верхняя Словянка
 monday,day,Центр
-monday,evening,Мизяковские хутора
 monday,evening,Small
 sunday,day,Центральный рынок
 sunday,day,Замостянская аллея
@@ -97,7 +95,6 @@ friday,morning,Верхняя Словянка
 friday,morning,Старый город
 friday,morning,Хутор Шевченка
 friday,morning,Мегамолл
-friday,day,Базар Вишенка
 friday,day,Вокзал
 friday,evening,Центр
 friday,evening,Набережный Квартал
@@ -106,13 +103,11 @@ friday,evening,Тяжилов
 friday,evening,Тяжилов
 friday,evening,Верхняя Словянка
 friday,evening,Верхняя Словянка
-friday,evening,Винницкие хутора
 friday,evening,Верхняя Словянка
 friday,evening,Западный автовокзал
 thursday,morning,Больница скорой помощи
 thursday,day,Масложир
 thursday,day,Центральный рынок
-thursday,day,Политех
 thursday,evening,Small
 thursday,evening,Можайка
 thursday,evening,Западный автовокзал
@@ -161,7 +156,6 @@ saturday,day,Западный автовокзал
 saturday,day,Тяжилов
 saturday,day,Центральный рынок
 saturday,day,Тяжилов
-saturday,day,Озеро Вишенка
 saturday,day,Замостянская аллея
 saturday,day,Тяжилов
 saturday,day,Тяжилов
@@ -182,7 +176,6 @@ friday,morning,Вокзал
 friday,morning,Small
 friday,morning,Small
 friday,day,Муниципальный рынок
-friday,day,Десна
 friday,day,Агрономичное
 friday,day,Мегамолл
 friday,evening,Тяжилов
