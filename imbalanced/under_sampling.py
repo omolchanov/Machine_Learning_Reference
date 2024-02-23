@@ -1,4 +1,17 @@
-# Guideline https://imbalanced-learn.org/stable/over_sampling.html
+import warnings
+
+from imblearn.under_sampling import (
+    ClusterCentroids,
+    RandomUnderSampler,
+    NearMiss,
+    TomekLinks,
+    EditedNearestNeighbours,
+    RepeatedEditedNearestNeighbours,
+    AllKNN,
+    CondensedNearestNeighbour,
+    OneSidedSelection,
+)
+from imblearn.metrics import geometric_mean_score, specificity_score, sensitivity_score
 
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -8,11 +21,11 @@ from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import balanced_accuracy_score
 
-from imblearn.over_sampling import RandomOverSampler, SMOTE, ADASYN, BorderlineSMOTE, KMeansSMOTE, SVMSMOTE
-from imblearn.metrics import specificity_score, sensitivity_score, geometric_mean_score
 from collections import Counter
 
 import pandas as pd
+
+warnings.filterwarnings('ignore')
 
 # Preparing the dataset
 df = pd.read_csv('../assets/street_alert.csv')
@@ -37,11 +50,10 @@ print('Original dataset:', '\n', areas)
 print('N Classes: %.i' % len(areas.keys()))
 
 # Filtering the dataset by number of appearance of a class
-df = df.groupby('area').filter(lambda x: len(x) >= 16)
+df = df.groupby('area').filter(lambda x: len(x) >= 0)
 filtered_areas = df.groupby(['area']).size().sort_values(ascending=False).to_dict()
 print('\n', 'Filtered dataset:', '\n', filtered_areas)
 print('N Classes: %.i' % len(filtered_areas.keys()))
-
 
 X = df[['weekday', 'time_day']]
 y = df['area']
@@ -49,7 +61,7 @@ y = df['area']
 
 def evaluate_clf(X_resampled, y_resampled):
     clfs = [
-        KNeighborsClassifier(n_neighbors=1),
+        KNeighborsClassifier(n_neighbors=3),
         RandomForestClassifier(n_estimators=1000),
         LogisticRegression(max_iter=1000),
         SVC()
@@ -82,12 +94,15 @@ def sample(sampler):
 
 
 samplers = [
-    RandomOverSampler(),
-    SMOTE(k_neighbors=3),
-    ADASYN(n_neighbors=2, sampling_strategy='minority'),
-    BorderlineSMOTE(),
-    KMeansSMOTE(),
-    SVMSMOTE()
+    ClusterCentroids(random_state=0),
+    RandomUnderSampler(),
+    NearMiss(version=1, n_neighbors=1),
+    TomekLinks(),
+    EditedNearestNeighbours(),
+    RepeatedEditedNearestNeighbours(),
+    AllKNN(),
+    CondensedNearestNeighbour(),
+    OneSidedSelection(),
 ]
 
 for s in samplers:
