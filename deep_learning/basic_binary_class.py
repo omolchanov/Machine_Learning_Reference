@@ -34,7 +34,8 @@ model.add(Dense(1, activation='sigmoid'))
 model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 # https://neurohive.io/ru/osnovy-data-science/jepoha-razmer-batcha-iteracija/
-model.fit(X, y, epochs=150, batch_size=10, verbose=True)
+# Weights are assigned FROM the particular neuron TO the neurons of the following layer
+model.fit(X, y, epochs=150, batch_size=50, verbose=True)
 
 # Evaluate the accuracy and loss
 loss, accuracy = model.evaluate(X, y)
@@ -42,3 +43,6 @@ print('Loss: %.2f | Accuracy: %.2f' % (loss, accuracy*100))
 
 # Making predictions
 pred = (model.predict(X) > 0.5).astype(int)
+
+# Printing model's summary
+print(model.summary())
