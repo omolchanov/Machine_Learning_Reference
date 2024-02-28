@@ -5,11 +5,10 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-import keras
 import numpy as np
 
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
+from keras.models import Sequential
+from keras.layers import Dense
 
 # Configuration
 np.set_printoptions(threshold=np.inf, suppress=True)
