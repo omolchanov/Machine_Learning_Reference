@@ -21,7 +21,7 @@ df = pd.read_csv('../assets/boston_houses.csv', header=None, sep='\s+')
 X = df.iloc[:, 0:13]
 y = df.iloc[:, 13]
 
-k = 5
+k = 12
 cv = KFold(n_splits=k)
 
 test_scores, train_scores, folds = [], [], []
