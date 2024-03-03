@@ -63,13 +63,78 @@ similarities = cosine_similarity(vect_data)
 # Decode the book's title, mapping them to the similar books
 df = pd.DataFrame(similarities, columns=df['Book-Title'], index=df['Book-Title']).reset_index().round(3)
 
-# Recommending
-input_book = 'the angel is near'
 
-recommendations = pd.DataFrame(df.nlargest(11, input_book)['Book-Title'])
-recommendations = recommendations[recommendations['Book-Title'] != input_book]
+# Identyfing similar users
+user_1 = {
+    'username': 'user_1',
+    'books': [
+        'the angel is near',
+        'jane doe',
+        'the witchfinder (amos walker mystery series)'
+    ]
+}
 
-print(recommendations)
+user_2 = {
+    'username': 'user_2',
+    'books': [
+        'jane doe',
+        'classical mythology',
+        'decision in normandy'
+    ]
+}
+
+user_3 = {
+    'username': 'user_3',
+    'books': [
+        'jane doe',
+        'the angel is near'
+    ]
+}
+
+
+def compare_users(target_user, comp_user, threshold=1):
+    identicals = list(set(target_user['books']).intersection(comp_user['books']))
+
+    if len(identicals) >= threshold:
+        return comp_user['username'], comp_user['books']
+
+
+comp_users = [user_1, user_2]
+similar_users = []
+
+for u in comp_users:
+    result = compare_users(user_3, u)
+
+    if result is None:
+        continue
+
+    similar_users.append(result)
+
+print('SIMILAR USERS:\n', similar_users)
+
+# Recommending books from the similar users
+similar_books = []
+for u in similar_users:
+    similar_books.append(u[1])
+
+print('\nSIMILAR BOOKS:\n', similar_books)
+
+# Excluding the books that the user has already liked from the recommendation list
+diff_books = np.array([])
+for b in similar_books:
+    diff_b = [x for x in b if not x in user_3['books']]
+    diff_books = np.append(diff_books, diff_b)
+
+print('\nBOOKS DIFFERENCE:\n', diff_books)
+
+
+for b in diff_books:
+    recommendations = pd.DataFrame(df.nlargest(11, b)['Book-Title'])
+    recommendations = recommendations[recommendations['Book-Title'] != b]
+
+    print('\nRECOMMENDATIONS:')
+    print('Similar to ', b.upper())
+    print(recommendations, '\n\n')
 
 
 def count_vectorizer_sample():

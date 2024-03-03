@@ -152,5 +152,6 @@ def cross_validate_models():
 pred = predict()
 print('Prediction: %i' % pred)
 
-evaluate_models()
-cross_validate_models()
+# evaluate_models()
+# cross_validate_models()
+
