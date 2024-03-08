@@ -9,7 +9,6 @@ Grid search of the best model's hyperparameters with Keras tuner
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-
 from keras.models import Sequential
 from keras.layers import Dense
 
@@ -37,19 +36,19 @@ def build_model(hp) -> Sequential:
 
     model = Sequential([
         Dense(
-            units=hp.Int('units_dense_layer_1', min_value=1, max_value=3, step=1),
+            units=hp.Int('units_dense_layer_1', min_value=1, max_value=13, step=1),
             activation=hp.Choice('activation_dense_layer_1', ['relu', 'linear'])
         ),
 
         Dense(
             units=hp.Int('units_dense_layer_2', min_value=1, max_value=3, step=1),
-            activation=hp.Choice('activation_dense_layer_2', ['sigmoid', 'tanh'])
+            activation=hp.Choice('activation_dense_layer_2', ['relu', 'linear'])
         )
     ])
 
     model.compile(
         loss='mean_absolute_error',
-        optimizer=hp.Choice('optimizer', values=['adam', 'SGD']),
+        optimizer=hp.Choice('optimizer', ['adam', 'nadam', 'SGD']),
         metrics=['r2_score'])
 
     return model
@@ -59,23 +58,23 @@ tuner = RandomSearch(
     hypermodel=build_model,
     objective=Objective('val_loss', direction='min'),
     max_trials=100,
-    executions_per_trial=1,
+    executions_per_trial=5,
     overwrite=True,
     directory='saved_models',
     project_name='gs',
 )
 
-
 # Printing the searchable parameters and the results
 print(tuner.search_space_summary())
 
-tuner.search(X_train, y_train, epochs=1, validation_data=(X_test, y_test), verbose=True)
+tuner.search(X_train, y_train, epochs=10, validation_data=(X_test, y_test), verbose=True)
 
 print(tuner.results_summary())
 print('\nBest parameters: ', tuner.get_best_hyperparameters()[0].values)
 
+
 # Building a model with the best parameters
 best_model = build_model(tuner.get_best_hyperparameters()[0])
-best_model.fit(X, y, epochs=20)
+best_model.fit(X, y, epochs=150)
 loss, r2 = best_model.evaluate(X, y)
 print(loss, r2)
