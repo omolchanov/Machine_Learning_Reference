@@ -1,3 +1,8 @@
+# Guideline:
+# https://refactoring.guru/ru/design-patterns/bridge
+# https://refactoring.guru/ru/design-patterns/bridge/python/example
+
+
 from abc import abstractmethod
 
 
