@@ -150,8 +150,16 @@ def evaluate_model(model, X, y):
     :param y - vector with labels
     """
 
-    model.fit(X, y, epochs=1000, batch_size=15, verbose=True, validation_split=0.2)
+    history = model.fit(X, y, epochs=800, batch_size=15, verbose=True, validation_split=0.2)
     loss, accuracy = model.evaluate(X, y)
+
+    sns.lineplot(history.history['accuracy']).set(
+        title='Results with Artificial Neural Network',
+        xlabel='epochs',
+        ylabel='accuracy'
+    )
+
+    plt.show()
 
     print('Loss: %.3f | Accuracy: %.3f' % (loss, accuracy))
 
@@ -278,8 +286,8 @@ model_o = get_model()
 
 # plot_dataframe()
 
-evaluate_dataframe(df_o)
+# evaluate_dataframe(df_o)
 evaluate_model(model_o, X_o, y_o)
 # find_best_hyperparameters(X, y)
-cross_validate_model(model_o, X_o, y_o)
+# cross_validate_model(model_o, X_o, y_o)
 # plot_confusion_matrix(model_o, X_o, y_o)
