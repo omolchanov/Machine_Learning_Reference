@@ -37,6 +37,30 @@ print('\n Shape', df.shape)
 print('\n Features: ', df.columns[:-1].values)
 print('\n Label: ', df.columns[-1])
 
+
+def classify_features():
+    """
+    Function to extract types of variables
+    https://towardsdatascience.com/regression-data-case-study-e45d915c8cf2
+    """
+
+    numerical = [var for var in df.columns if df[var].dtype != 'O']
+    categorical = [var for var in df.columns if df[var].dtype == 'O']
+    year_vars = [var for var in numerical if 'Yr' in var or 'Year' in var]
+
+    discrete = []
+
+    for var in numerical:
+        if len(df[var].unique()) < 20 and var not in year_vars:
+            discrete.append(var)
+
+    print('\n Types of Features: ')
+    print('Numerical: {} \nCategorial: {} \nDiscrete: {} \nDate-time {}'.format(
+        numerical, categorical, discrete, year_vars))
+
+
+classify_features()
+
 # The columns and corresponding data types
 print('\n The columns and corresponding data types: ')
 df.info()
@@ -54,6 +78,13 @@ print('\n The distribution of the classes: ', df['quality'].value_counts())
 # Checking missed values
 print('\n Number of missed values: ', df.isnull().sum())
 print('\n Number of n/a values: ', df.isna().sum())
+
+
+
+
+
+
+
 
 # Correlation between the features
 sns.heatmap(df.corr(method='pearson'), annot=True).set(
