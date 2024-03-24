@@ -17,7 +17,21 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\assets\fitness_programme.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\assets\hostel_factors.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\assets\microchips_dataset.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -56,6 +70,13 @@
           <value>
             <Attribute>
               <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\assets\winequality-white.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
             </Attribute>
           </value>
         </entry>
