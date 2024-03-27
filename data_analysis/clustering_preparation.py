@@ -34,7 +34,12 @@ df = pd.read_csv('../assets/winequality-white.csv', sep=';')
 df = df.iloc[:, :-1]
 
 
-def build_wiskey_plot(df_o):
+def build_wiskey_plot(df_o: pd.DataFrame) -> None:
+    """
+    Builds a Whiskey plot for easier identification of outliers
+    :param df_o: Dataframe
+    """
+
     fig, ax = plt.subplots(1, df_o.shape[1], sharex=False)
 
     for i, c in enumerate(df_o.columns):
@@ -44,7 +49,12 @@ def build_wiskey_plot(df_o):
     plt.show()
 
 
-def build_distribution_plots(df_o):
+def build_distribution_plots(df_o: pd.DataFrame) -> None:
+    """
+    Builds the plots displaying kernel density estimation for each feature
+    :param df_o: Dataframe
+    """
+
     fig, ax = plt.subplots(1, df_o.shape[1])
 
     for i, c in enumerate(df_o.columns):
@@ -54,36 +64,51 @@ def build_distribution_plots(df_o):
     plt.show()
 
 
-def build_clustering_plot(model, X, y_pred):
+def build_clustering_plot(model, X: pd.DataFrame, y_pred: pd.Series) -> None:
+    """
+    Builds a scatter plot with predicted clusters
+    :param model: <T> the clustering model used for prediction
+    :param X: a matrix of independent variables
+    :param y_pred: a vector with predicted variables
+    """
+
     sns.scatterplot(x=X[:, 0], y=X[:, 1], hue=y_pred).set(title='Clusters: ' + str(model))
     plt.show()
 
 
-def calculate_multicollinearity(df_o):
+def calculate_multicollinearity(df_o: pd.DataFrame) -> None:
     """
     Multicollinearity detection
     If VIF 1-5 - ok, there is no strong correlation
     If VIF more than 5 - there is strong correlation
     If VIF is inf - there is extremely high correlation (linear dependence)
-    :param df_o:
-    :return:
+    :param df_o: Dataframe
     """
+
     vif = [variance_inflation_factor(df_o.values, i) for i in range(df_o.shape[1])]
     result = pd.DataFrame({'Variance Inflation Factor': vif[0:]}, index=df_o.columns).T
 
     print('\n', result)
 
 
-def drop_duplicates(df_o):
+def drop_duplicates(df_o: pd.DataFrame) -> pd.DataFrame:
+    """
+    Drops duplicates from the entire Dataframe
+    :param df_o: Dataframe
+    :return: Dataframe
+    """
+
     df_o.drop_duplicates(subset=None, keep='first', inplace=True)
     df_o.reset_index(drop=True, inplace=True)
 
     return df_o
 
 
-def drop_outliers(df_o):
+def drop_outliers(df_o: pd.DataFrame) -> pd.DataFrame:
     """
     Removes the outliers from all the features basing InterQuartile Range
+    :param df_o: Dataframe
+    :return: Dataframe
     """
 
     outlier_columns = df_o[[
@@ -113,13 +138,13 @@ def drop_outliers(df_o):
     return df_o
 
 
-def standardize_features(df_o):
+def standardize_features(df_o: pd.DataFrame) -> pd.DataFrame:
     """
     Standardization is feature scaling method where the values are centered around the mean with a
     unit standard deviation. This means that the mean of the attribute becomes zero, and the resultant
     distribution has a unit standard deviation.
-    :param df_o:
-    :return:
+    :param df_o: Dataframe
+    :return: Dataframe
     """
 
     skewed_values = df_o.apply(lambda x: sp.stats.skew(x)).sort_values(ascending=False)
@@ -131,12 +156,12 @@ def standardize_features(df_o):
     return df_o
 
 
-def normalize_features(df_o):
+def normalize_features(df_o: pd.DataFrame) -> pd.DataFrame:
     """
     Normalization, a vital aspect of Feature Scaling, is a data preprocessing technique employed to
     standardize the values of features in a dataset, bringing them to a common scale.
-    :param df_o:
-    :return:
+    :param df_o: Dataframe
+    :return: transformed Dataframe
     """
 
     scaled_data = Normalizer().fit_transform(df_o.values)
@@ -146,24 +171,50 @@ def normalize_features(df_o):
 
 
 def reduce_features(df_o):
+    """
+    Reduces the dimesionality of the Dataframe
+    :param df_o: Dataframe
+    :return: transformed Dataframe
+    """
+
     return TSNE(n_components=2).fit_transform(df_o)
 
 
-def prepare_data():
+def prepare_data() -> np.ndarray:
+    """
+    Client's code for recalling functions responsible for preparing the dataset for clustering
+    :return: numpy array used for clustering
+    """
+
     drop_duplicates(df)
     drop_outliers(df)
+
+    build_wiskey_plot(df)
+    build_distribution_plots(df)
+    calculate_multicollinearity(df)
 
     X = standardize_features(df)
     X = normalize_features(X)
 
     drop_outliers(X)
 
+    build_wiskey_plot(X)
+    build_distribution_plots(X)
+    calculate_multicollinearity(X)
+
     X = reduce_features(X)
 
     return X
 
 
-def evaluate_model(X, model, plot_clusters=False):
+def evaluate_model(X: pd.DataFrame, model, plot_clusters=False) -> None:
+    """
+    Builds clusters and evaluates the model with different scoring techniques
+    :param X: a matrix of independent variables
+    :param model: <T> the clustering model used for prediction
+    :param plot_clusters: if True, builds a scatter ploy with clusters
+    """
+
     print('\n', model)
 
     try:
