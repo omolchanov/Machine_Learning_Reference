@@ -79,6 +79,10 @@ print('\n The distribution of the classes: ', df['quality'].value_counts())
 print('\n Number of missed values: ', df.isnull().sum())
 print('\n Number of n/a values: ', df.isna().sum())
 
+# Checking for duplicates
+print('\n Checking for duplicates')
+print(df.duplicated().value_counts())
+
 # Correlation between the features
 sns.heatmap(df.corr(method='pearson'), annot=True).set(
     title='Correlation between the features'
