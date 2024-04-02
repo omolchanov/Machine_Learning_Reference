@@ -21,19 +21,19 @@ FILENAME_TRAIN_DS = 'simple_books_short_train.txt'
 FILENAME_VALID_DS = 'simple_books_short_valid.txt'
 
 # Data
-BATCH_SIZE = 64
-MIN_STRING_LEN = 512  # Strings shorter than this will be discarded
-SEQ_LEN = 128  # Length of training sequences, in tokens
+BATCH_SIZE = 16
+MIN_STRING_LEN = 16  # Strings shorter than this will be discarded
+SEQ_LEN = 32  # Length of training sequences, in tokens
 
 # Model
 EMBED_DIM = 256
 FEED_FORWARD_DIM = 128
 NUM_HEADS = 3
-NUM_LAYERS = 2
+NUM_LAYERS = 3
 VOCAB_SIZE = 5000  # Limits parameters in model.
 
 # Training
-EPOCHS = 1
+EPOCHS = 5
 
 # LOAD TRAIN AND VALIDATION DATASETS
 
@@ -163,6 +163,9 @@ while True:
         print('Exiting...')
         break
 
+    if prompt == '':
+        continue
+
     prompt_tokens = start_packer(tokenizer([prompt]))
 
     # The wrapper function
@@ -189,13 +192,13 @@ while True:
     # Similar to random search, we sample the next token from the probability distribution provided by the model.
     # The only difference is that here, TopKSampler selects out the top k most probable tokens, and distribute the
     # probability mass over them before sampling.
-    # sampler = keras_nlp.samplers.TopKSampler(k=10)
+    sampler = keras_nlp.samplers.TopKSampler(k=10)
 
     #  Instead of choosing a k, we choose a probability p that we want the probabilities of the top tokens
     #  to sum up to. This way, we can dynamically adjust the k based on the probability distribution.
     #  By setting p=0.9, if 90% of the probability mass is concentrated on the top 2 tokens, we can
     #  filter out the top 2 tokens to sample from.
-    sampler = keras_nlp.samplers.TopPSampler(p=0.5)
+    # sampler = keras_nlp.samplers.TopPSampler(p=0.5)
 
     output_tokens = sampler(
         next=next_token,
