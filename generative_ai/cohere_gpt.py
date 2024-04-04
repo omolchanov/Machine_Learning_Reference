@@ -1,3 +1,7 @@
+# Guidelines:
+# https://txt.cohere.com/hello-world-p1/
+# https://txt.cohere.com/hello-world-p2/
+
 import sys
 
 import cohere
