@@ -67,6 +67,7 @@ raw_val_ds = (
 
 # TRAIN TOKENIZER VOCABULARY
 # https://huggingface.co/learn/nlp-course/en/chapter6/6
+# https://www.linkedin.com/pulse/demystifying-tokenization-preparing-data-large-models-rany-2nebc/
 vocab = keras_nlp.tokenizers.compute_word_piece_vocabulary(
     raw_train_ds,
     vocabulary_size=VOCAB_SIZE,
