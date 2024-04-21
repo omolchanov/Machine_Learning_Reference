@@ -16,3 +16,4 @@ sktime~=0.26.0
 imblearn~=0.0
 hiplot~=0.1.30
 cohere~=5.1.7
+netron~=7.6.1
