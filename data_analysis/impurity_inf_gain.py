@@ -37,3 +37,5 @@ for i in range(len(X.columns)):
 ig_dict_sorted = dict(sorted(ig_dict.items(), key=lambda item: item[1], reverse=True))
 print('\nInformation gain for each feature: ')
 pprint.pp(ig_dict_sorted)
+
+
