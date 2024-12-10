@@ -22,7 +22,7 @@ pd.set_option('display.width', None)
 pd.set_option('display.max_colwidth', 1)
 np.set_printoptions(threshold=sys.maxsize, suppress=True)
 
-co = cohere.Client('PjvfZ9sPIgqHTUhfMOTJVRCG6aWbpb48w7zpihdV')
+co = cohere.Client('')
 
 
 def collaborate():
