@@ -21,7 +21,7 @@ X = np.array([[5, 3], [10, 15], [15, 12], [24, 10], [30, 45], [85, 70], [71, 80]
 y_true = [0, 1, 0, 0, 1, 1, 1, 1, 1, 1]
 
 # Build clusters
-model = AgglomerativeClustering(affinity='euclidean', linkage='ward')
+model = AgglomerativeClustering(linkage='ward')
 y = model.fit(X)
 
 # Calculatng accuracy metrics
