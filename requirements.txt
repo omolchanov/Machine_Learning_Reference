@@ -20,3 +20,5 @@ netron~=7.8.3
 scikit-fuzzy~=0.5.0
 apyori~=1.1.2
 mlxtend~=0.23.1
+gym~=0.10.11
+ipython~=8.26.0
