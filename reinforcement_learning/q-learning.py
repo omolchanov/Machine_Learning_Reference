@@ -81,7 +81,7 @@ def solve_q_learning():
     gamma = 0.6
     epsilon = 0.1
 
-    for i in range(1, 100):
+    for i in range(1, 100001):
         state = env.reset()
 
         epochs, penalties, reward, = 0, 0, 0
