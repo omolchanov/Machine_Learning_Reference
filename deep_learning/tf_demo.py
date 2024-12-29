@@ -53,6 +53,37 @@ def variables():
     print(res)
 
 
-# constant_nodes()
-# placeholders()
+def computational_graph():
+    W = tf.compat.v1.Variable([0.3], tf.float32)
+    b = tf.compat.v1.Variable([-0.3], tf.float32)
+    x = tf.compat.v1.placeholder(tf.float32)
+
+    linear_model = W * x + b
+
+    y = tf.compat.v1.placeholder(tf.float32)
+    squared_deltas = linear_model - y
+    loss = tf.compat.v1.reduce_sum(squared_deltas)
+
+    init = tf.compat.v1.global_variables_initializer()
+
+    session = tf.compat.v1.Session()
+    session.run(init)
+
+    res = session.run(loss, {x: [1, 2, 3, 4], y: [1, 2, 3, 4]})
+    print(abs(res))
+
+    opt = tf.compat.v1.train.GradientDescentOptimizer(0.01)
+    train = opt.minimize(loss)
+
+    session.run(init)
+    for i in range(1000):
+        session.run(train, {x: [1, 2, 3, 4], y: [1, 2, 3, 4]})
+
+    res = session.run([W, b])
+    print(res)
+
+
+constant_nodes()
+placeholders()
 variables()
+computational_graph()
