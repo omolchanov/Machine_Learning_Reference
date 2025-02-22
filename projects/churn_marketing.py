@@ -1,5 +1,6 @@
 # https://www.youtube.com/watch?v=ajRfPY7s3CE
 # https://www.evidentlyai.com/classification-metrics/accuracy-precision-recall
+# https://plotly.com/graphing-libraries/
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
@@ -11,6 +12,10 @@ from sklearn.metrics import classification_report
 
 import pandas as pd
 import numpy as np
+
+import plotly.express as px
+from plotly.subplots import make_subplots
+from plotly.offline import plot
 
 # Configuration
 pd.set_option('display.max_rows', None)
@@ -26,13 +31,53 @@ PROFIT = 400
 MARKETING_BUDGET = 5000
 COST_PER_CLIENT = 30
 
-
 df = pd.read_csv('../assets/churn-rate.csv', decimal=",")
 
+
+# Data visualization
+def visualize_data():
+    figures = [
+        px.bar(
+            df.groupby(['churn']).
+            agg({'churn': 'size'})['churn'].
+            sort_values(ascending=False),
+            color=['blue', 'red']),
+
+        px.bar(
+            df[df['churn'] == True].
+            groupby(['state']).agg({'churn': 'size'})['churn'].
+            sort_values(ascending=False),
+        ),
+
+        px.bar(
+            df[df['churn'] == True].
+            groupby(['customer service calls']).
+            agg({'customer service calls': 'size'})['customer service calls'].
+            sort_values(ascending=False),
+            orientation='h'),
+    ]
+
+    figures_names = [
+        'Churned vs non-churned customers',
+        'Churned customers by state',
+        'Customer services calls by state'
+    ]
+
+    fig = make_subplots(rows=len(figures), cols=1, subplot_titles=figures_names)
+
+    for i, figure in enumerate(figures):
+        for trace in range(len(figure['data'])):
+            fig.add_trace(figure['data'][trace], row=i + 1, col=1)
+
+    fig.update_layout(showlegend=False)
+
+    plot(fig)
+
+
+# Data preparation
 X = df.iloc[:, :-1]
 y = df.iloc[:, -1]
 
-# Data preparation
 X = X.drop(['area code', 'phone number'], axis=1)
 
 X['state'] = LabelEncoder().fit_transform(X['state'])
@@ -92,6 +137,7 @@ def predict_pnl(clf, X_pred):
 
 
 if __name__ == '__main__':
+    visualize_data()
     n_sample = get_clients_sample_size()
     X_pred = X.sample(n=n_sample)
 
