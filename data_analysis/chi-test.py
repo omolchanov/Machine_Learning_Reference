@@ -1,5 +1,6 @@
 # https://www.stratascratch.com/blog/chi-square-test-in-python-a-technical-guide/
 # https://www.statology.org/chi-square-critical-value-python/
+# https://thedatascientist.com/high-p-value-and-low-chi-squared-in-stata/
 
 from scipy.stats import chi2_contingency, chi2
 
@@ -13,6 +14,7 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
 pd.set_option('display.max_colwidth', 1)
 
+# Dataset description
 '''
 1 school - student's school (binary: 'GP' - Gabriel Pereira or 'MS' - Mousinho da Silveira)
 2 sex - student's sex (binary: 'F' - female or 'M' - male)
@@ -81,17 +83,25 @@ def perform_chi_squad_test(feature1, feature2):
     Degrees of freedom for the chi-square using the following formula: df = (r-1)(c-1), where r is the number of rows
     and c is the number of columns. If the observed chi-square test statistic exceeds the critical value,
     you can reject the null hypothesis.
+
+    To calculate Expected values (E) multiply each row total by each column total and divide by the overall total.
     """
     a = 0.05
 
     contingency_table = pd.crosstab(df[feature1], df[feature2])
     chi2_value, p, dof, expected = chi2_contingency(contingency_table)
 
+    print(contingency_table)
+    print(expected)
+
     # Calculating the chi-square critical value
     cv = chi2.ppf(1-a, dof)
 
     # Interpreting the result
-    return chi2_value, p, p < a, cv
+    # A large chi-squared value, combined with a small p-value, suggests a significant relationship between the
+    # variables being analyzed. Conversely, a small chi-squared value and a large p-value indicate weak or
+    # no evidence of association.
+    return chi2_value, p, p < a and chi2_value > cv, cv
 
 
 aspects_and_features = {
@@ -106,6 +116,8 @@ for a, f in enumerate(aspects_and_features):
     feature1 = aspects_and_features[f][0]
     feature2 = aspects_and_features[f][1]
 
+    print('\n', f)
+
     result = perform_chi_squad_test(feature1, feature2)
-    print('%s >>> Chi2: %.3f | Critical chi2 value: %.3f | p-value %.3f | Is valuable: %s' %
-          (f, result[0], result[3], result[1], result[2]))
+    print('\nChi2: %.3f | Critical chi2 value: %.3f | p-value %.3f | Is valuable: %s' %
+          (result[0], result[3], result[1], result[2]))
