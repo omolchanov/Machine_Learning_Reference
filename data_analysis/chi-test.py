@@ -67,9 +67,9 @@ pd.set_option('display.max_colwidth', 1)
 
 df = pd.read_csv('../assets/student-mat.csv', sep=';')
 
-# print(df.info())
-# print(df.head())
-# print(df.describe())
+print(df.info())
+print(df.head())
+print(df.describe())
 
 
 def perform_chi_squad_test(feature1, feature2):
