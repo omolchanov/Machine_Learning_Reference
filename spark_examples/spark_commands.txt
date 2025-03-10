@@ -1,0 +1,9 @@
+# Run a Spark from Docker container, expose ports for remote connection, master UI etc
+docker run -p 8080:8080 -p 7077:7077 -p 4040:4040 -p 4041:4041 -p 8081:8081 -p 15002:15002 -ti --name my-spark testspark
+
+# Launch a worker
+docker exec -it -u root my-spark bash
+cd /opt/spark/sbin/ && ./start-worker.sh spark://172.17.0.2:7077
+
+# Launch a remote server
+cd /opt/spark/sbin/ && ./start-connect-server.sh --packages org.apache.spark:spark-connect_2.12:3.5.5
