@@ -1,11 +1,13 @@
+# https://spark.apache.org/docs/3.5.4/api/python/getting_started/quickstart_df.html
+
 from datetime import datetime, date
 
 from pyspark.sql import SparkSession, Row
-from pyspark.sql.functions import upper, pandas_udf
+from pyspark.sql.functions import upper
 
 import pandas as pd
 
-spark = SparkSession.builder.appName('RemoteTest').remote("sc://localhost:15002").create()
+spark = SparkSession.builder.appName('RemoteTest').remote('sc://localhost:15002').getOrCreate()
 
 # Configuration
 spark.conf.set('spark.sql.repl.eagerEval.maxNumRows', 12)
