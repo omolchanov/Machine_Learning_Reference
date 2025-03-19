@@ -1,3 +1,6 @@
+# https://www.statology.org/pyspark-train-test-split/
+# https://docs.databricks.com/aws/en/machine-learning/train-model/distributed-training/distributed-ml-for-spark-connect
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
@@ -44,68 +47,79 @@ df.show()
 # Dropping unnecessary columns
 df = df.drop('area code', 'phone number')
 
-# Converting Spark Dataframe to Pandas Dataframe due to performing descriptive statistics
-pandas_df = df.toPandas()
 
-print('\nDescribing:', pandas_df.describe().round(3))
-print('\nDistribution of the target variable\n', pandas_df['churn'].value_counts())
+def perform_descriptive_statistics():
+    # Converting Spark Dataframe to Pandas Dataframe due to performing descriptive statistics
+    pandas_df = df.toPandas()
 
-# Performing EDA and plotting
-df.createOrReplaceTempView('df')
+    print('\nDescribing:', pandas_df.describe().round(3))
+    print('\nDistribution of the target variable\n', pandas_df['churn'].value_counts())
 
-res_1 = spark.sql(
-    "SELECT state, COUNT(churn) "
-    "FROM df "
-    "WHERE churn = 'True' "
-    "GROUP BY state ORDER BY count(churn) DESC"
-).toPandas()
 
-res_2 = spark.sql(
-    "SELECT customer_service_calls, COUNT(account_length) "
-    "FROM df "
-    "WHERE churn = 'True' "
-    "GROUP BY customer_service_calls "
-    "ORDER BY customer_service_calls"
-).toPandas()
+def perform_eda():
+    # Performing EDA and plotting
+    df.createOrReplaceTempView('df')
 
-res_3 = spark.sql("SELECT state, churn, total_day_calls FROM df").toPandas()
-res_4 = spark.sql("SELECT state, churn, total_night_calls FROM df").toPandas()
+    res_1 = spark.sql(
+        "SELECT state, COUNT(churn) "
+        "FROM df "
+        "WHERE churn = 'True' "
+        "GROUP BY state ORDER BY count(churn) DESC"
+    ).toPandas()
 
-figures = [
-    (px.bar(res_1, x='state', y='count(churn)'), (1,1)),
-    (px.bar(res_2, x='customer_service_calls', y='count(account_length)'), (1,2)),
+    res_2 = spark.sql(
+        "SELECT customer_service_calls, COUNT(account_length) "
+        "FROM df "
+        "WHERE churn = 'True' "
+        "GROUP BY customer_service_calls "
+        "ORDER BY customer_service_calls"
+    ).toPandas()
 
-    (px.histogram(
-        res_3,
-        x='state',
-        y='total_day_calls',
-        color='churn',
-        barmode='group',
-        histfunc='count',
-        height=400), (2,1)),
+    res_3 = spark.sql("SELECT state, churn, total_day_calls FROM df").toPandas()
+    res_4 = spark.sql("SELECT state, churn, total_night_calls FROM df").toPandas()
 
-    (px.histogram(
-        res_4,
-        x='state',
-        y='total_night_calls',
-        color='churn',
-        barmode='group',
-        histfunc='count',
-        height=400), (2,2))
-]
+    figures = [
+        (px.bar(res_1, x='state', y='count(churn)'), (1,1)),
+        (px.bar(res_2, x='customer_service_calls', y='count(account_length)'), (1,2)),
 
-figures_names = [
-    'Churned customers by state',
-    'Churned customers by number of customer_service_calls',
-    'Customers churn by state and total_day_calls',
-    'Customers churn by state and total_night_calls'
-]
+        (px.histogram(
+            res_3,
+            x='state',
+            y='total_day_calls',
+            color='churn',
+            barmode='group',
+            histfunc='count',
+            height=400), (2,1)),
 
-fig = make_subplots(rows=2, cols=2, subplot_titles=figures_names)
+        (px.histogram(
+            res_4,
+            x='state',
+            y='total_night_calls',
+            color='churn',
+            barmode='group',
+            histfunc='count',
+            height=400), (2,2))
+    ]
 
-for i, figure in enumerate(figures):
-    for trace in range(len(figure[0]['data'])):
-        fig.add_trace(figure[0]['data'][trace], row=figure[1][0], col=figure[1][1])
+    figures_names = [
+        'Churned customers by state',
+        'Churned customers by number of customer_service_calls',
+        'Customers churn by state and total_day_calls',
+        'Customers churn by state and total_night_calls'
+    ]
 
-fig.update_layout(showlegend=False)
-plot(fig)
+    fig = make_subplots(rows=2, cols=2, subplot_titles=figures_names)
+
+    for i, figure in enumerate(figures):
+        for trace in range(len(figure[0]['data'])):
+            fig.add_trace(figure[0]['data'][trace], row=figure[1][0], col=figure[1][1])
+
+    fig.update_layout(showlegend=False)
+    plot(fig)
+
+
+
+
+
+
+
