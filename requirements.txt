@@ -29,3 +29,4 @@ pingouin~=0.5.5
 plotly~=6.0.0
 semopy~=2.3.11
 factor_analyzer~=0.5.1
+pyod~=2.0.3
