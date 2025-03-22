@@ -9,6 +9,15 @@ import numpy as np
 
 from pyod.models.mad import MAD
 from pyod.models.iforest import IForest
+from pyod.models.pca import PCA
+from pyod.utils.data import generate_data, get_outliers_inliers, evaluate_print
+from pyod.utils.example import visualize
+
+from sklearn.preprocessing import MinMaxScaler
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 # Configuration
 pd.set_option('display.max_rows', None)
@@ -75,6 +84,37 @@ def remove_multivariate_outliers():
     print(new_df.shape)
 
 
+def remove_outliers_pca():
+    X_train, y_train = generate_data(train_only=True)
+
+    df_train = pd.DataFrame(X_train)
+    df_train['y'] = y_train
+
+    clf = PCA()
+    clf.fit(X_train)
+
+    # Binary labels of the training data, where 0 indicates inliers and 1 indicates outliers/anomalies.
+    y_train_pred = clf.labels_
+    print(pd.Series(y_train_pred).value_counts())
+
+    # Outlier scores of the training data. Higher scores typically indicate more abnormal behavior.
+    # Outliers usually have higher scores. Outliers tend to have higher scores.
+    y_train_scores = clf.decision_scores_
+    y_train_scores_scaled = MinMaxScaler().fit_transform(y_train_scores.reshape(len(y_train_scores), 1))
+
+    df_s = pd.DataFrame({
+        'x0': df_train[0],
+        'x1': df_train[1],
+        'y': y_train_scores_scaled[:,0]
+
+    })
+
+    ax = sns.scatterplot(x='x0', y='x1', hue='y', data=df_s, palette="RdBu_r")
+    ax.legend(title="Anomaly Scores")
+    plt.show()
+
+
 if __name__ == '__main__':
     remove_unvariate_outliers()
     remove_multivariate_outliers()
+    remove_outliers_pca()
