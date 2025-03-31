@@ -30,3 +30,5 @@ plotly~=6.0.0
 semopy~=2.3.11
 factor_analyzer~=0.5.1
 pyod~=2.0.3
+featuretools~=1.31.0
+catboost~=1.2.7
