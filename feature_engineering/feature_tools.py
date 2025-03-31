@@ -1,23 +1,31 @@
 # https://ranasinghiitkgp.medium.com/feature-engineering-using-featuretools-with-code-10f8c83e5f68
 
 import warnings
+
 warnings.filterwarnings('ignore')
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score, mean_absolute_error
+from sklearn.metrics import r2_score, mean_absolute_percentage_error
 
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from catboost import CatBoostRegressor
 
 import pandas as pd
+import numpy as np
 import featuretools as ft
+
+from scipy.stats import chi2_contingency
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 # Configuration
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
 pd.set_option('display.max_colwidth', 1)
+pd.set_option('display.float_format', lambda x: '%.3f' % x)
+np.set_printoptions(threshold=np.inf, suppress=True)
 
 df_train = pd.read_csv('../assets/big_mart_sales_train.csv')
 df_test = pd.read_csv('../assets/big_mart_sales_test.csv')
@@ -27,12 +35,14 @@ df = df_train._append(df_test, ignore_index=True)
 
 # Dealing with missing values
 df['Item_Weight'].fillna(df['Item_Weight'].mean(), inplace=True)
+df['Item_Outlet_Sales'].fillna(df['Item_Outlet_Sales'].mean(), inplace=True)
 df['Outlet_Size'].fillna('missing', inplace=True)
-print('NaN values:\n', df.isnull().sum(axis=0))
+
+
+# print('NaN values:\n', df.isnull().sum(axis=0))
 
 
 def prepare_former_df(former_df):
-
     # Removing unused columns
     new_df = former_df.drop(['Item_Identifier', 'Outlet_Identifier', 'Item_Outlet_Sales'], axis=1)
 
@@ -63,7 +73,7 @@ def prepare_ext_df(ext_df):
         'Outlet_Identifier',
         'Item_Identifier',
         'outlet.MODE(bigmart.Item_Identifier)',
-        'outlet.MODE(bigmart.Item_Fat_Content)'
+        'outlet.MODE(bigmart.Item_Fat_Content)',
     ], axis=1)
 
     # Encoding 'Item_Fat_Content' feature to numerical
@@ -100,7 +110,7 @@ def perform_regression(df, reg):
 
     print('\n', reg)
     print('R2: %.3f' % (r2_score(y_pred, y_test)))
-    print('MAE: %.3f' % (mean_absolute_error(y_pred, y_test)))
+    print('MAPE: %.2f' % (mean_absolute_percentage_error(y_pred, y_test) * 100))
     print('==========================')
 
 
@@ -138,6 +148,23 @@ def compose_new_features():
     return ext_df
 
 
+def analyze_df(df):
+    print(df.corr())
+
+    for _, c in enumerate(df.columns):
+        contingency_table = pd.crosstab(df['Item_MRP'], df[c])
+        chi2_value, p, _, _ = chi2_contingency(contingency_table)
+
+        print('P-value of ', c, ':', p)
+
+    try:
+        vif = [variance_inflation_factor(df.values, i) for i in range(df.shape[1])]
+        result = pd.DataFrame({'Variance Inflation Factor': vif[0:]}, index=df.columns).T
+        print('\n', result)
+    except Exception:
+        print('VIF can not be performed')
+
+
 def run():
     regs = [
         CatBoostRegressor(
@@ -148,7 +175,10 @@ def run():
             verbose=0,
             cat_features=['Item_Fat_Content']
         ),
-        DecisionTreeRegressor()
+        DecisionTreeRegressor(),
+        LinearRegression(),
+        Lasso(),
+        Ridge()
     ]
 
     print('==== EVALUATING FORMER DF =====')
@@ -166,5 +196,17 @@ def run():
         perform_regression(pr_df, reg)
 
 
+def analyze():
+    print('============ANALYSIS OF FORMER DF===============')
+    former_df = df
+    analyze_df(prepare_former_df(former_df))
+
+    print('============ANALYSIS OF EXTENDED DF===============')
+    ext_df = compose_new_features()
+    analyze_df(prepare_ext_df(ext_df))
+
+
 if __name__ == '__main__':
+    # analyze()
     run()
+
