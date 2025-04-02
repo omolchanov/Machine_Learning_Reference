@@ -1,7 +1,6 @@
 # https://ranasinghiitkgp.medium.com/feature-engineering-using-featuretools-with-code-10f8c83e5f68
 
 import warnings
-
 warnings.filterwarnings('ignore')
 
 from sklearn.preprocessing import LabelEncoder
