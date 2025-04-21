@@ -5,9 +5,14 @@ from datetime import datetime
 from airflow.decorators import dag, task, task_group, branch_task
 from airflow.datasets import Dataset
 
+import pandas as pd
+
+csv_dataset = Dataset('/opt/airflow/dags/df/churn-rate.csv')
+
 
 @dag(
     dag_id='flow_example',
+    schedule=[csv_dataset],
     start_date=datetime(2025, 4, 15),
     catchup=False
 )
@@ -19,6 +24,8 @@ def dataset_flow_example():
         @task(task_id='task1')
         def task_1():
             print('I am task 1')
+            df = pd.read_csv(csv_dataset.uri)
+            print(df.head())
 
         @task(task_id='task3')
         def task_3():
@@ -48,6 +55,7 @@ dataset_flow_example()
 @dag(
     dag_id='conditional_flow',
     start_date=datetime(2025, 4, 15),
+    schedule='@once',
     catchup=False
 )
 def conditional_flow_example():
@@ -55,14 +63,16 @@ def conditional_flow_example():
     @task(task_id='task1')
     def task_1(**kwargs):
         print('task1')
-        kwargs['ti'].xcom_push(key='number', value=15)
+        kwargs['ti'].xcom_push(value='15', key='number')
 
     @branch_task(task_id='branch_task_2')
     def task_2(**kwargs):
         print('task2')
 
         n = kwargs['ti'].xcom_pull(task_ids='task1', key='number')
-        print(n)
+        n = int(n)
+
+        print(type(n))
 
         if n > 10:
             return 'task3'
@@ -73,13 +83,20 @@ def conditional_flow_example():
         else:
             return None
 
-    @task(task_id='task3')
-    def task_3():
+    @task(task_id='task3', outlets=[csv_dataset])
+    def task_3(**kwargs):
         print('task3')
 
+        n = kwargs['ti'].xcom_pull(task_ids='task1', key='n')
+        print(n)
+
+        print(csv_dataset.uri)
+
     @task(task_id='task4')
-    def task_4():
+    def task_4(**kwargs):
         print('task4')
+        n = kwargs['ti'].xcom_pull(task_ids='task1', key='n')
+        print(n / 2)
 
     task_1()
     task_2() >> task_3()
