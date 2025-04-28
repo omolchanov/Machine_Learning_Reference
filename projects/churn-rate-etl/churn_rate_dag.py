@@ -3,6 +3,7 @@ import pprint
 
 from airflow.decorators import dag, task
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.datasets import Dataset
 
 from datetime import datetime
@@ -12,10 +13,13 @@ CSV_DATASET_PATH = '/opt/airflow/dags/df/churn-rate.csv'
 
 raw_mysql_db = MySqlHook(mysql_conn_id='mysql_aiven_raw')
 bronze_db = MySqlHook(mysql_conn_id='mysql_aiven_bronze')
+mongo_db = MongoHook(mongo_conn_id='churn_rate_mongo')
+
 
 # Datasets
 csv_dataset = Dataset(CSV_DATASET_PATH)
 raw_mysql_db_dataset = Dataset('Raw_MySql_DB')
+mongo_db_dataset = Dataset('MongoDB_Scam')
 
 bronze_db_dataset = Dataset('Churn_rate_Bronze_DB')
 
@@ -80,8 +84,49 @@ def churn_rate_medallon_graph():
 
             bronze_db.insert_rows(table=table, rows=rows, target_fields=headers[i], commit_every=500)
 
+    @task(
+        task_id='load_mongodb_anomalies_analysis_to_bronze_db',
+        doc_md='Saving MongoDB anomalies detection data to Bronze MySQL DB',
+        outlets=[mongo_db_dataset]
+    )
+    def load_mongodb_anomalies_analysis_to_bronze_db():
+        client = mongo_db.get_conn()
+        db = client.churn_rate
+        anomalies_analysis_collection = db.anomalies_analysis
+
+        print(anomalies_analysis_collection)
+
+        rows = []
+        mongo_cursor = anomalies_analysis_collection.find({})
+        for d in mongo_cursor:
+            d['_id'] = str(d['_id'])
+            d.update()
+
+            r = tuple(d.values())
+            rows.append(r)
+
+        # Load data to the bronze DB
+        table = 'Anomalies_Analysis'
+
+        headers = [
+            'mongo_id',
+            'customer_id',
+            'phone_number',
+            'outgoing_phone_number',
+            'timestamp',
+            'fraud_scoring',
+            'is_fraud'
+        ]
+
+        # Truncate the Bronze DB table
+        sql = f"TRUNCATE TABLE {table}"
+        bronze_db.run(sql)
+
+        bronze_db.insert_rows(table=table, rows=rows, target_fields=headers, commit_every=500)
+
     load_csv_dataset_to_bronze_db()
     load_mysql_raw_dataset_to_bronze_db()
+    load_mongodb_anomalies_analysis_to_bronze_db()
 
 
 churn_rate_medallon_graph()
