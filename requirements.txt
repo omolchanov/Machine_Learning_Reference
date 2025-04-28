@@ -33,3 +33,6 @@ pyod~=2.0.3
 featuretools~=1.31.0
 catboost~=1.2.7
 TPOT~=0.12.2
+mysql~=0.0.3
+mysql-connector-python~=9.3.0
+pymongo~=4.12.0
