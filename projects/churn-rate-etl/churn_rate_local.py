@@ -3,6 +3,16 @@ import csv
 import mysql.connector
 from pymongo import MongoClient
 
+import pandas as pd
+import numpy as np
+
+# Configuration
+np.set_printoptions(threshold=np.inf, suppress=True)
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', None)
+pd.set_option('display.max_colwidth', 1)
+
 
 # Paths and connections
 CSV_DATASET_PATH = '../../assets/churn-rate.csv'
@@ -21,6 +31,14 @@ bronze_db = mysql.connector.connect(
     password='',
     port='25202',
     database='churn_rate_bronze'
+)
+
+silver_db = mysql.connector.connect(
+    host='mysql-25effa04-oleksandr-45fd.d.aivencloud.com',
+    user='avnadmin',
+    password='',
+    port='25202',
+    database='churn_rate_silver'
 )
 
 mongo_db_client = MongoClient(
@@ -133,8 +151,46 @@ def load_mongodb_anomalies_analysis_to_bronze_db():
     mongo_cursor.close()
 
 
+def prepare_churn_rate_data_silver_db():
+    table = 'Churn_rate'
+    select_sql = f"SELECT * FROM {table}"
+
+    df = pd.read_sql(select_sql, bronze_db)
+
+    # Remove unused columns
+    df = df.drop(['area_code'], axis=1)
+
+    # Remove duplicates
+    print('===REMOVING DUPLICATES===')
+    print(df.duplicated().value_counts())
+    df.drop_duplicates(inplace=True)
+
+    # Remove empty values
+    print('===REMOVING EMPTY VALUES===')
+    print(df.isna().sum())
+    df = df.fillna(0)
+
+    # Saving the pre-processed data to silver DB
+    # Truncating Churn_rate table
+    silver_db_cursor = silver_db.cursor()
+
+    sql = f"TRUNCATE TABLE {table}"
+    silver_db_cursor.execute(sql)
+
+    rows = list(df.itertuples(index=False, name=None))
+    insert_sql = f"INSERT INTO {table} ({', '.join(df.columns)}) VALUES ({', '.join(['%s'] * len(df.columns))})"
+
+    silver_db_cursor.executemany(insert_sql, rows)
+    silver_db.commit()
+
+    # silver_db_cursor.close()
+    # silver_db.close()
+
+
 load_csv_dataset_to_bronze_db()
 load_mysql_raw_dataset_to_bronze_db()
 load_mongodb_anomalies_analysis_to_bronze_db()
+prepare_churn_rate_data_silver_db()
+
 
 

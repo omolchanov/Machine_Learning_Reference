@@ -8,11 +8,22 @@ from airflow.datasets import Dataset
 
 from datetime import datetime
 
+import pandas as pd
+import numpy as np
+
+# Configuration
+np.set_printoptions(threshold=np.inf, suppress=True)
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', None)
+pd.set_option('display.max_colwidth', 1)
+
 # Paths and connections
 CSV_DATASET_PATH = '/opt/airflow/dags/df/churn-rate.csv'
 
 raw_mysql_db = MySqlHook(mysql_conn_id='mysql_aiven_raw')
 bronze_db = MySqlHook(mysql_conn_id='mysql_aiven_bronze')
+silver_db = MySqlHook(mysql_conn_id='mysql_aiven_silver')
 mongo_db = MongoHook(mongo_conn_id='churn_rate_mongo')
 
 
@@ -22,6 +33,7 @@ raw_mysql_db_dataset = Dataset('Raw_MySql_DB')
 mongo_db_dataset = Dataset('MongoDB_Scam')
 
 bronze_db_dataset = Dataset('Churn_rate_Bronze_DB')
+silver_db_dataset = Dataset('Churn_rate_Silver_DB')
 
 
 @dag(
@@ -124,9 +136,42 @@ def churn_rate_medallon_graph():
 
         bronze_db.insert_rows(table=table, rows=rows, target_fields=headers, commit_every=500)
 
-    load_csv_dataset_to_bronze_db()
-    load_mysql_raw_dataset_to_bronze_db()
-    load_mongodb_anomalies_analysis_to_bronze_db()
+    @task(
+        task_id='prepare_churn_rate_data_silver_db',
+        doc_md='Removing duplicates and empty rows from Churn_rate table and saving to Silver DB',
+        outlets=[bronze_db_dataset, silver_db_dataset]
+    )
+    def prepare_churn_rate_data_silver_db():
+        table = 'Churn_rate'
+        select_sql = f"SELECT * FROM {table}"
+
+        df:pd.DataFrame = bronze_db.get_pandas_df(sql=select_sql)
+
+        # Remove unused columns
+        df = df.drop(['area_code'], axis=1)
+
+        # Remove duplicates
+        print('===REMOVING DUPLICATES===')
+        df.drop_duplicates(inplace=True)
+
+        # Remove empty values
+        print('===REMOVING EMPTY VALUES===')
+        df = df.fillna(0)
+
+        # Saving the pre-processed data to silver DB
+        # Truncating Churn_rate table
+
+        sql = f"TRUNCATE TABLE {table}"
+        silver_db.run(sql)
+
+        rows = df.to_records(index=False).tolist()
+        silver_db.insert_rows(table=table, rows=rows, target_fields=df.columns.tolist(), commit_every=500)
+
+    [
+        load_csv_dataset_to_bronze_db(),
+        load_mysql_raw_dataset_to_bronze_db(),
+        load_mongodb_anomalies_analysis_to_bronze_db()
+    ] >> prepare_churn_rate_data_silver_db()
 
 
 churn_rate_medallon_graph()
