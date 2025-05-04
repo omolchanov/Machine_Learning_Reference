@@ -244,6 +244,32 @@ def prepare_customer_data_silver_db():
     # silver_db.close()
 
 
+def prepare_anomalies_analysis_silver_db():
+    bronze_db_cursor = bronze_db.cursor()
+    silver_db_cursor = silver_db.cursor()
+
+    table = 'Anomalies_Analysis'
+    headers = ['customer_id', 'phone_number', 'outgoing_phone_number', 'timestamp', 'fraud_scoring', 'is_fraud']
+
+    # Load Anomalies analysis data from Bronze DB to Silver DB
+    select_sql = f"SELECT {', '.join(headers)} FROM Anomalies_Analysis"
+    bronze_db_cursor.execute(select_sql)
+    rows = bronze_db_cursor.fetchall()
+
+    sql = f"TRUNCATE TABLE {table}"
+    silver_db_cursor.execute(sql)
+
+    insert_sql = f"INSERT INTO {table} ({', '.join(headers)}) VALUES ({', '.join(['%s'] * len(headers))})"
+    silver_db_cursor.executemany(insert_sql, rows)
+    silver_db.commit()
+
+    # silver_db_cursor.close()
+    # silver_db.close()
+
+    # bronze_db_cursor.close()
+    # bronze_db.close()
+
+
 def prepare_churn_rate_report_data_golden_db():
     silver_db_cursor = silver_db.cursor()
     gold_db_cursor = gold_db.cursor()
@@ -275,16 +301,48 @@ def prepare_churn_rate_report_data_golden_db():
     gold_db_cursor.executemany(insert_sql, rows)
     gold_db.commit()
 
-    silver_db_cursor.close()
-    silver_db.close()
+    # silver_db_cursor.close()
+    # silver_db.close()
 
-    gold_db_cursor.close()
-    gold_db.close()
+    # gold_db_cursor.close()
+    # gold_db.close()
 
 
-load_csv_dataset_to_bronze_db()
-load_mysql_raw_dataset_to_bronze_db()
-load_mongodb_anomalies_analysis_to_bronze_db()
-prepare_churn_rate_data_silver_db()
-prepare_customer_data_silver_db()
+def prepare_anomalies_analysis_golden_db():
+    silver_db_cursor = silver_db.cursor()
+    gold_db_cursor = gold_db.cursor()
+
+    table = 'Anomalies_Analysis_Report'
+
+    sql = f"TRUNCATE TABLE {table}"
+    gold_db_cursor.execute(sql)
+
+    # Loads Anomalies Analysis Data from silver DB to golden DB
+    headers_sql = f"SHOW COLUMNS FROM {table}"
+    gold_db_cursor.execute(headers_sql)
+    headers_res = gold_db_cursor.fetchall()
+    headers = [h[0] for h in headers_res][1:]
+
+    select_sql = (f"SELECT {', '.join(headers)} FROM churn_rate_silver.Anomalies_Analysis "
+                  f"WHERE customer_id "
+                  f"IN (SELECT id FROM churn_rate_gold.Churn_rate_Report)")
+
+    silver_db_cursor.execute(select_sql)
+    rows = silver_db_cursor.fetchall()
+
+    print(rows)
+
+    insert_sql = f"INSERT INTO {table} ({', '.join(headers)}) VALUES ({', '.join(['%s'] * len(headers))})"
+    gold_db_cursor.executemany(insert_sql, rows)
+    gold_db.commit()
+
+
+# load_csv_dataset_to_bronze_db()
+# load_mysql_raw_dataset_to_bronze_db()
+# load_mongodb_anomalies_analysis_to_bronze_db()
+# prepare_churn_rate_data_silver_db()
+# prepare_customer_data_silver_db()
+# prepare_anomalies_analysis_silver_db()
 prepare_churn_rate_report_data_golden_db()
+prepare_anomalies_analysis_golden_db()
+
