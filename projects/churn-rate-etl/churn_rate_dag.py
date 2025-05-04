@@ -23,6 +23,7 @@ CSV_DATASET_PATH = '/opt/airflow/dags/df/churn-rate.csv'
 raw_mysql_db = MySqlHook(mysql_conn_id='mysql_aiven_raw')
 bronze_db = MySqlHook(mysql_conn_id='mysql_aiven_bronze')
 silver_db = MySqlHook(mysql_conn_id='mysql_aiven_silver')
+gold_db = MySqlHook(mysql_conn_id='mysql_aiven_gold')
 mongo_db = MongoHook(mongo_conn_id='churn_rate_mongo')
 
 
@@ -33,7 +34,7 @@ mongo_db_dataset = Dataset('MongoDB_Scam')
 
 bronze_db_dataset = Dataset('Churn_rate_Bronze_DB')
 silver_db_dataset = Dataset('Churn_rate_Silver_DB')
-
+gold_db_dataset = Dataset('Churn_rate_Golden_DB')
 
 @dag(
     dag_id='churn_rate_medallon_graph',
@@ -215,12 +216,45 @@ def churn_rate_medallon_graph():
         for r in update_data:
             silver_db.run(update_sql, parameters=r)
 
+    @task(
+        task_id='prepare_churn_rate_report_data_golden_db',
+        doc_md='Loading Churn_rate_Report in golden DB from silver DB database',
+        outlets=[silver_db_dataset, gold_db_dataset]
+    )
+    def prepare_churn_rate_report_data_golden_db():
+
+        table = 'Churn_rate_Report'
+
+        sql = f"TRUNCATE TABLE {table}"
+        gold_db.run(sql)
+
+        # Loading Churn_rate_Report in golden DB from silver DB database
+        select_sql = (f"SELECT tb_chr.*, "
+                      f"tb_cust.first_name, "
+                      f"tb_cust.last_name, "
+                      f"tb_cust.balance, "
+                      f"tb_cust.join_date, "
+                      f"tb_cust.churn_date FROM Churn_rate AS tb_chr "
+                      f"JOIN Customer AS tb_cust "
+                      f"ON tb_chr.phone_number = tb_cust.phone_number "
+                      f"WHERE tb_cust.join_date IS NOT NULL OR tb_cust.balance IS NOT NULL")
+
+        rows = silver_db.get_records(select_sql)
+
+        headers_sql = f"SHOW COLUMNS FROM {table}"
+        headers_res = gold_db.get_records(headers_sql)
+        headers = [h[0] for h in headers_res][1:]
+
+        gold_db.insert_rows(table=table, rows=rows, target_fields=headers, commit_every=500)
+
     ([
         load_csv_dataset_to_bronze_db(),
         load_mysql_raw_dataset_to_bronze_db(),
         load_mongodb_anomalies_analysis_to_bronze_db()
-    ] >>
-     prepare_churn_rate_data_silver_db() >> prepare_customer_data_silver_db())
+    ]
+     >> prepare_churn_rate_data_silver_db()
+     >> prepare_customer_data_silver_db()
+     >> prepare_churn_rate_report_data_golden_db())
 
 
 churn_rate_medallon_graph()
