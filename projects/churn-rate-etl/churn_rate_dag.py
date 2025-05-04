@@ -1,5 +1,4 @@
 import csv
-import pprint
 
 from airflow.decorators import dag, task
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -167,11 +166,61 @@ def churn_rate_medallon_graph():
         rows = df.to_records(index=False).tolist()
         silver_db.insert_rows(table=table, rows=rows, target_fields=df.columns.tolist(), commit_every=500)
 
-    [
+    @task(
+        task_id='prepare_customer_data_silver_db',
+        doc_md='Aggregates all Customer data from Bronze DB to a single table in Silver DB',
+        outlets=[bronze_db_dataset, silver_db_dataset]
+    )
+    def prepare_customer_data_silver_db():
+
+        # Truncate the Silver DB table
+        table = 'Customer'
+
+        sql = f"TRUNCATE TABLE {table}"
+        silver_db.run(sql)
+
+        # Selecting Customer data from Bronze DB, loading it to Silver DB
+        select_sql = (f"SELECT bd_b.* FROM churn_rate_bronze.Customer AS bd_b "
+                      f"JOIN churn_rate_silver.Churn_rate AS bd_s "
+                      f"ON bd_b.phone_number = bd_s.phone_number")
+        rows = silver_db.get_records(select_sql)
+
+        headers = ['id', 'phone_number', 'first_name', 'last_name', 'churn']
+        silver_db.insert_rows(table=table, rows=rows, target_fields=headers, commit_every=500)
+
+        # Loading Customer table in silver DB with Customer_Balance table from bronze DB
+        select_sql = (f"SELECT bd_b.customer_id, bd_b.balance FROM churn_rate_bronze.Customer_Balance AS bd_b "
+                      f"JOIN churn_rate_silver.Customer AS bd_s "
+                      f"ON bd_b.customer_id = bd_s.id")
+
+        rows = silver_db.get_records(select_sql)
+
+        update_sql = f"UPDATE {table} SET balance = %s WHERE id = %s"
+        update_data = [(balance, id_) for (id_, balance) in rows]
+
+        for r in update_data:
+            silver_db.run(update_sql, parameters=r)
+
+        # Loading Customer table in silver DB with Customer_Tenure table data from bronze DB
+        select_sql = (f"SELECT bd_b.customer_id, bd_b.join_date, bd_b.churn_date "
+                      f"FROM churn_rate_bronze.Customer_Tenure AS bd_b "
+                      f"JOIN churn_rate_silver.Customer AS bd_s "
+                      f"ON bd_b.customer_id = bd_s.id")
+
+        rows = silver_db.get_records(select_sql)
+
+        update_sql = f"UPDATE {table} SET join_date = %s, churn_date = %s WHERE id = %s"
+        update_data = [(join_date, churn_date, id_) for (id_, join_date, churn_date) in rows]
+
+        for r in update_data:
+            silver_db.run(update_sql, parameters=r)
+
+    ([
         load_csv_dataset_to_bronze_db(),
         load_mysql_raw_dataset_to_bronze_db(),
         load_mongodb_anomalies_analysis_to_bronze_db()
-    ] >> prepare_churn_rate_data_silver_db()
+    ] >>
+     prepare_churn_rate_data_silver_db() >> prepare_customer_data_silver_db())
 
 
 churn_rate_medallon_graph()
