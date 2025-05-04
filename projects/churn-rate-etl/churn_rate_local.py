@@ -39,6 +39,14 @@ silver_db = mysql.connector.connect(
     database='churn_rate_silver'
 )
 
+gold_db = mysql.connector.connect(
+    host='mysql-25effa04-oleksandr-45fd.d.aivencloud.com',
+    user='avnadmin',
+    password='',
+    port='25202',
+    database='churn_rate_gold'
+)
+
 mongo_db_client = MongoClient(
     'mongodb+srv://oleksandrmolchanov:test123@churn-rate-scam.bnuspoh.mongodb.net/'
     '?retryWrites=true&w=majority&appName=churn-rate-scam')
@@ -236,8 +244,47 @@ def prepare_customer_data_silver_db():
     # silver_db.close()
 
 
+def prepare_churn_rate_report_data_golden_db():
+    silver_db_cursor = silver_db.cursor()
+    gold_db_cursor = gold_db.cursor()
+
+    table = 'Churn_rate_Report'
+
+    sql = f"TRUNCATE TABLE {table}"
+    gold_db_cursor.execute(sql)
+
+    # Loading Churn_rate_Report in golden DB from silver DB database
+    select_sql = (f"SELECT tb_chr.*, "
+                  f"tb_cust.first_name, "
+                  f"tb_cust.last_name, "
+                  f"tb_cust.balance, "
+                  f"tb_cust.join_date, "
+                  f"tb_cust.churn_date FROM Churn_rate AS tb_chr "
+                  f"JOIN Customer AS tb_cust "
+                  f"ON tb_chr.phone_number = tb_cust.phone_number "
+                  f"WHERE tb_cust.join_date IS NOT NULL OR tb_cust.balance IS NOT NULL")
+    silver_db_cursor.execute(select_sql)
+    rows = silver_db_cursor.fetchall()
+
+    headers_sql = f"SHOW COLUMNS FROM {table}"
+    gold_db_cursor.execute(headers_sql)
+    headers_res = gold_db_cursor.fetchall()
+    headers = [h[0] for h in headers_res][1:]
+
+    insert_sql = f"INSERT INTO {table} ({', '.join(headers)}) VALUES ({', '.join(['%s'] * len(headers))})"
+    gold_db_cursor.executemany(insert_sql, rows)
+    gold_db.commit()
+
+    silver_db_cursor.close()
+    silver_db.close()
+
+    gold_db_cursor.close()
+    gold_db.close()
+
+
 load_csv_dataset_to_bronze_db()
 load_mysql_raw_dataset_to_bronze_db()
 load_mongodb_anomalies_analysis_to_bronze_db()
 prepare_churn_rate_data_silver_db()
 prepare_customer_data_silver_db()
+prepare_churn_rate_report_data_golden_db()
