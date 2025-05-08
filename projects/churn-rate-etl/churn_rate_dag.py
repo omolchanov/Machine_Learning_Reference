@@ -8,10 +8,8 @@ from airflow.datasets import Dataset
 from datetime import datetime
 
 import pandas as pd
-import numpy as np
 
 # Configuration
-np.set_printoptions(threshold=np.inf, suppress=True)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
@@ -35,6 +33,7 @@ mongo_db_dataset = Dataset('MongoDB_Scam')
 bronze_db_dataset = Dataset('Churn_rate_Bronze_DB')
 silver_db_dataset = Dataset('Churn_rate_Silver_DB')
 gold_db_dataset = Dataset('Churn_rate_Golden_DB')
+
 
 @dag(
     dag_id='churn_rate_medallon_graph',
@@ -247,14 +246,60 @@ def churn_rate_medallon_graph():
 
         gold_db.insert_rows(table=table, rows=rows, target_fields=headers, commit_every=500)
 
+    @task(
+        task_id='prepare_anomalies_analysis_silver_db',
+        doc_md='Loads Anomalies analysis data from Bronze DB to Silver DB',
+        outlets=[bronze_db_dataset, silver_db_dataset]
+    )
+    def prepare_anomalies_analysis_silver_db():
+
+        table = 'Anomalies_Analysis'
+        headers = ['customer_id', 'phone_number', 'outgoing_phone_number', 'timestamp', 'fraud_scoring', 'is_fraud']
+
+        # Truncate table
+        sql = f"TRUNCATE TABLE {table}"
+        silver_db.run(sql)
+
+        # Load Anomalies analysis data from Bronze DB to Silver DB
+        select_sql = f"SELECT {', '.join(headers)} FROM Anomalies_Analysis"
+        rows = bronze_db.get_records(select_sql)
+
+        silver_db.insert_rows(table=table, rows=rows, target_fields=headers, commit_every=500)
+
+    @task(
+        task_id='prepare_anomalies_analysis_golden_db',
+        doc_md='Loads Anomalies Analysis Data from silver DB to golden DB',
+        outlets=[silver_db_dataset, gold_db_dataset]
+    )
+    def prepare_anomalies_analysis_golden_db():
+
+        table = 'Anomalies_Analysis_Report'
+        headers = ['customer_id', 'phone_number', 'outgoing_phone_number', 'timestamp', 'fraud_scoring', 'is_fraud']
+
+        # Truncate table
+        sql = f"TRUNCATE TABLE {table}"
+        gold_db.run(sql)
+
+        # Loads Anomalies Analysis Data from silver DB to golden DB
+        select_sql = (f"SELECT {', '.join(headers)} FROM churn_rate_silver.Anomalies_Analysis "
+                      f"WHERE customer_id "
+                      f"IN (SELECT id FROM churn_rate_gold.Churn_rate_Report)")
+        rows = silver_db.get_records(select_sql)
+
+        gold_db.insert_rows(table=table, rows=rows, target_fields=headers, commit_every=500)
+
     ([
         load_csv_dataset_to_bronze_db(),
         load_mysql_raw_dataset_to_bronze_db(),
         load_mongodb_anomalies_analysis_to_bronze_db()
-    ]
-     >> prepare_churn_rate_data_silver_db()
-     >> prepare_customer_data_silver_db()
-     >> prepare_churn_rate_report_data_golden_db())
+    ] >>
+
+     prepare_churn_rate_data_silver_db() >>
+     prepare_customer_data_silver_db() >>
+     prepare_anomalies_analysis_silver_db() >>
+
+     prepare_churn_rate_report_data_golden_db() >>
+     prepare_anomalies_analysis_golden_db())
 
 
 churn_rate_medallon_graph()
