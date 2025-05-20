@@ -1,8 +1,11 @@
 import os
+import warnings
 
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain
+
+warnings.filterwarnings('ignore')
 
 
 # Load OpenRouter API key
@@ -16,21 +19,17 @@ llm = ChatOpenAI(
     temperature=0.7
 )
 
-# Create a prompt template
-prompt = PromptTemplate.from_template("""
-You are an AI assistant with expertise in data analysis and automation.
-Answer the following question:
-Question: {question}
-""")
 
-# Chain using the new Runnable interface
-# Build the chain using pipe syntax
-chain = prompt | llm | StrOutputParser()
+# Memory
+memory = ConversationBufferMemory()
 
+# Prebuilt chain
+conversation = ConversationChain(
+    llm=llm,
+    memory=memory,
+    verbose=False
+)
 
-# Example query
-query = "hi"
-response = chain.invoke({"question": query})
-print(f"Agent Response: {response}")
-
-
+# Try it
+print(conversation.run("My name is Alex"))
+print(conversation.run("What is my name?"))
