@@ -1,5 +1,7 @@
 import os
 import warnings
+import requests
+import json
 from datetime import datetime
 
 from langchain_openai import ChatOpenAI
@@ -38,7 +40,23 @@ time_tool = Tool(
 
 # Joke Tool
 def get_joke(_input: str) -> str:
-    return "Why don't scientists trust atoms? Because they make up everything!"
+    print("\n===Requesting API for a joke===")
+
+    url = "https://official-joke-api.appspot.com/random_joke"
+    response = requests.get(url)
+
+    dec_response = json.loads(response.content)
+    joke = dec_response["setup"] + " " + dec_response["punchline"]
+
+    print("Here is a raw joke: ", joke, "\n")
+
+    return joke
+
+
+# Word count tool
+def get_word_count(_input: str) -> str:
+    word_count = len(_input.split())
+    return f"The text contains {word_count} words."
 
 
 joke_tool = Tool(
@@ -47,16 +65,23 @@ joke_tool = Tool(
     description="Use this tool to get a random joke."
 )
 
+get_word_count_tool = Tool(
+    name="get_word_count",
+    func=get_word_count,
+    description="Use this tool to count words in the input"
+)
+
+
 # Memories for each agent
-time_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+analysis_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 joke_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 # Agent 1: TimeBot
-time_bot = initialize_agent(
+analysis_bot = initialize_agent(
     tools=[time_tool],
     llm=llm,
     agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
-    memory=time_memory,
+    memory=analysis_memory,
     verbose=False
 )
 
@@ -69,12 +94,14 @@ joke_bot = initialize_agent(
     verbose=False
 )
 
-# --- Example interaction loop ---
-print("TimeBot:", time_bot.run("What time is it?"))
-print("JokeBot:", joke_bot.run("Tell me a joke"))
+print("AnalysisBot -> JokeBot: ", "Tell me a joke and I will analyse it")
+answer_1 = joke_bot.run("tell a joke")
 
-# Let them "talk" to each other
-msg_from_timebot = time_bot.run("Please tell JokeBot the current time.")
-msg_from_jokebot = joke_bot.run(f"TimeBot said: '{msg_from_timebot}'. What do you say?")
-print("TimeBot -> JokeBot:", msg_from_timebot)
-print("JokeBot -> TimeBot:", msg_from_jokebot)
+print("JokeBot -> AnalysisBot: ", "Sure here is it!", answer_1)
+
+answer_2 = analysis_bot.run("rate the joke from the this message " + answer_1)
+print("AnalysisBot -> JokeBot: ", "Thanks, here is my analysis", answer_2)
+
+print("AnalysisBot -> JokeBot: ", analysis_bot.run("Please count words in " + answer_2))
+
+
