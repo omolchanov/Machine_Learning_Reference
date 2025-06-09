@@ -56,34 +56,36 @@ block_size = 4  # context window
 batch_size = 8
 
 
-def get_batches(data, block_size, batch_size):
+def get_dataset(data, block_size, batch_size):
     """
-    Takes a sequence of encoded tokens (integers representing characters) and splitting it into (input, target) pairs.
-    Each pair is a small chunk of the sequence, where:
-    - input = current sequence of tokens
-    - target = next sequence of tokens (shifted by one)
-
-    This is used to train a model to predict the next character.
+    Prepares tf.data.Dataset of (input, target) pairs from character tokenized data.
+    Each sample is a pair of sequences: input of length `block_size`, and target (next tokens).
     """
-
     X, y = [], []
     for i in range(len(data) - block_size):
         X.append(data[i:i+block_size])
         y.append(data[i+1:i+block_size+1])
-    X = np.array(X[:batch_size])
-    y = np.array(y[:batch_size])
-    return X, y
+    X = np.array(X, dtype=np.int32)
+    y = np.array(y, dtype=np.int32)
+
+    dataset = tf.data.Dataset.from_tensor_slices((X, y))
+    dataset = dataset.shuffle(buffer_size=1024).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    return dataset
 
 
 # Prepare features and labels
 # feature -> piece of data sliced onto block size.
 # label -> piece of data sliced onto block size + 1
-X_train, y_train = get_batches(data, block_size, batch_size)
+train_dataset = get_dataset(data, block_size, batch_size)
 
 
-# print(X_train)
+# for batch_num, (x_batch, y_batch) in enumerate(train_dataset):
+#     print(f"\nBatch {batch_num + 1}")
+#     print("Input (X):")
+#     print(x_batch.numpy())
+#     print("Target (y):")
+#     print(y_batch.numpy())
 # print('=======================')
-# print(y_train)
 
 
 # === 2. Build Transformer Block ===
@@ -178,16 +180,16 @@ llm_model.compile(
 
 
 # === 4. Train and evaluate the Model ===
-llm_model.fit(X_train, y_train, epochs=1000, verbose=0)
-loss, acc = llm_model.evaluate(X_train, y_train)
+llm_model.fit(train_dataset, epochs=50, verbose=0)
+loss, acc = llm_model.evaluate(train_dataset)
 
 
-# === 5. Generate Text ===
+# === 5. Generate Response ===
 def generate_text(
         start_text,
         model=llm_model,
         tokenizer=base_tokenizer,
-        length=10,
+        length=20,
         block_size=block_size,
         temperature=1.0
 ):
