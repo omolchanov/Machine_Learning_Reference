@@ -7,38 +7,47 @@ This script does:
 - Optionally generate text
 """
 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from keras.preprocessing.text import Tokenizer
+
 import numpy as np
 
-from sklearn.preprocessing import LabelEncoder
 
 # === 1. Prepare dataset ===
-text = "hello world hello world"
-chars = sorted(list(set(text)))
-vocab_size = len(chars)
 
 # Character-to-index mappings. Create encoder and fit
-encoder = LabelEncoder()
-enc = encoder.fit(list(chars))
+text = "hello world hello world  hello world"
+
+base_tokenizer = Tokenizer(char_level=True)
+base_tokenizer.fit_on_texts([text])
+
+vocab_size = len(base_tokenizer.word_index) + 1
+# print("Vocabulary size:", vocab_size)
 
 
 # Encode string to integers
 def encode(s):
-    return encoder.transform(list(s))
+    return base_tokenizer.texts_to_sequences([s])[0]
 
 
 # Decode integers to string
 def decode(l):
-    return ''.join(encoder.inverse_transform(l))
+    # Handle zero-padding if present
+    return ''.join(base_tokenizer.sequences_to_texts([l])[0].split())
 
 
-# print(encode(text))
-# print(decode([3, 2, 4, 4, 5, 0, 7, 5, 6, 4, 1, 0, 3, 2, 4, 4, 5, 0, 7, 5, 6, 4, 1]))
+# print(encode("hello"))
+# print(decode([3, 4, 1, 1, 2]))
+
 
 # Tokenized data
 data = np.array(encode(text), dtype=np.int32)
+
 # print(data)
 # print(decode(data))
 
@@ -66,11 +75,16 @@ def get_batches(data, block_size, batch_size):
     return X, y
 
 
+# Prepare features and labels
+# feature -> piece of data sliced onto block size.
+# label -> piece of data sliced onto block size + 1
 X_train, y_train = get_batches(data, block_size, batch_size)
+
 
 # print(X_train)
 # print('=======================')
 # print(y_train)
+
 
 # === 2. Build Transformer Block ===
 
@@ -120,36 +134,108 @@ class TransformerBlock(layers.Layer):
 
 def build_model(vocab_size, block_size, embed_dim=32, num_heads=2, ff_dim=64):
     inputs = layers.Input(shape=(block_size,))
+
+    """
+    The Embedding layer in Keras is used to convert integer-encoded categorical data (like words or tokens) into dense 
+    vectors of fixed size. It's commonly used in NLP models to learn word representations during training.
+    
+    input_dim is the size of the vocabulary — i.e., the maximum integer index + 1 that can appear in your input data.
+    Keras expects all token indices to be less than input_dim. So if your tokenizer assigns tokens 0 to 9 
+    (10 unique tokens), input_dim should be 10, not 9.
+    
+    The output_dim in a Keras Embedding layer controls the dimensionality of the dense vector each word/token 
+    is mapped to,
+    """
     x = layers.Embedding(vocab_size, embed_dim)(inputs)
+
+    """
+    Positional Embedding Layer is  is used to add positional information to token embeddings — essential for models 
+    like Transformers that don't have recurrence. Since Transformers don't process tokens in order (no recurrence), 
+    we must manually add position information using positional embeddings.
+    This is where AddPositionEmbs (or sine/cosine embeddings) come in — they inject sequence order into the model.
+    """
     x = layers.AddPositionEmbs()(x) if hasattr(layers, 'AddPositionEmbs') else x  # fallback if not in TF
+
     x = TransformerBlock(embed_dim, num_heads, ff_dim)(x)
     x = layers.Dense(vocab_size)(x)
     return keras.Model(inputs, x)
 
 
-model = build_model(vocab_size, block_size)
-model.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), optimizer="adam",  metrics=['accuracy'])
-model.summary()
+llm_model = build_model(vocab_size, block_size)
+
+"""
+SparseCategoricalCrossentropy is a loss function used for multi-class classification problems where:
+- The output (prediction) is a probability distribution over classes.
+- The target labels are integer class indices — not one-hot encoded.
+Labels look like: [2, 0, 3, 1] (integers), not [[0, 0, 1, 0], ...].
+"""
+llm_model.compile(
+    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    optimizer="nadam",
+    metrics=['accuracy']
+)
+# model.summary()
 
 
 # === 4. Train and evaluate the Model ===
-model.fit(X_train, y_train, epochs=100, verbose=1)
-loss, acc = model.evaluate(X_train, y_train)
+llm_model.fit(X_train, y_train, epochs=1000, verbose=0)
+loss, acc = llm_model.evaluate(X_train, y_train)
 
 
 # === 5. Generate Text ===
+def generate_text(
+        start_text,
+        model=llm_model,
+        tokenizer=base_tokenizer,
+        length=10,
+        block_size=block_size,
+        temperature=1.0
+):
+    """
+    Generate character-level text using a trained Transformer model.
 
-def generate_text(model, start_text="", length=20):
-    input_eval = list(encode(start_text)[-block_size:])  # make sure it's a list
+    Args:
+        model: Trained Keras model.
+        tokenizer: Keras Tokenizer fitted on the char-level text.
+        start_text (str): Initial seed text to begin generation.
+        length (int): Number of characters to generate.
+        block_size (int): Input sequence length model was trained on.
+        temperature (float): Sampling randomness. Lower = more deterministic.
+
+    Returns:
+        str: Generated string.
+    """
+    # Encode the start text
+    input_ids = tokenizer.texts_to_sequences([start_text])[0]
+    generated = input_ids[:]
+
     for _ in range(length):
-        x = np.array([input_eval[-block_size:]])
-        preds = model.predict(x, verbose=0)[0][-1]
-        next_id = tf.random.categorical(tf.expand_dims(preds, 0), num_samples=1).numpy()[0][0]
-        input_eval.append(next_id)
-    return decode(input_eval)
+        # Get last `block_size` tokens (pad with 0 if too short)
+        context = generated[-block_size:]
+
+        if len(context) < block_size:
+            context = [0] * (block_size - len(context)) + context
+
+        # Shape to (1, block_size)
+        x_input = tf.constant([context], dtype=tf.int32)
+
+        # Predict next token logits
+        logits = model(x_input, training=False)
+        next_logits = logits[0, -1] / temperature
+
+        # Sample next token ID
+        next_id = tf.random.categorical(tf.expand_dims(next_logits, 0), num_samples=1).numpy()[0][0]
+
+        # Append to the generated sequence
+        generated.append(next_id)
+
+    # Decode to string
+    return ''.join(tokenizer.sequences_to_texts([generated])[0].split())
 
 
-print(generate_text(model, "hello w"))
+prompt = 'hello '
+response = generate_text(str(prompt))
+print("Generated text:", response)
 
 
 
