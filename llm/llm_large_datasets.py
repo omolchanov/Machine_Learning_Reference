@@ -16,14 +16,14 @@ from datasets import load_dataset
 
 
 # === NN Parameters
-DATASET_SIZE = 100000
+DATASET_SIZE = 10000
 
 BLOCK_SIZE = 128
 BATCH_SIZE = 64
 EMBED_DIMS = 64
 NUM_HEADS = 2
 FF_DIM = 128
-EPOCHS = 2
+EPOCHS = 1
 
 DIRECTORY_PATH = 'models'
 
@@ -53,7 +53,7 @@ def encode(s):
 
 
 def decode(l):
-    return ''.join(tokenizer.sequences_to_texts([l])[0].split())
+    return tokenizer.sequences_to_texts([l])[0]
 
 
 # Encode entire dataset
@@ -183,6 +183,6 @@ def generate_text(
 
 # === 7. Try Text Generation ===
 
-prompt = "the future of ai"
-output = generate_text(prompt)
-print("\nGenerated Text:\n", output)
+prompt = 'hello'
+response = generate_text(prompt)
+print("\nGenerated Text:\n", response)
