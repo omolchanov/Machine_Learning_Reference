@@ -12,7 +12,7 @@ from llm_tokenizer import (
     DS_FIlENAME,
     TOKENIZER_FILENAME
 )
-from llm_large_datasets import (
+from llm_model import (
     MODELS_DIRECTORY_PATH,
     MODEL_METADATA_FILENAME
 )

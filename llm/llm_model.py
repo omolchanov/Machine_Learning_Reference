@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # Load dataset
     data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
 
-    # Load the metadata
+    # Load the dataset metadata
     with open(f"{DATA_DIRECTORY_PATH}/{DS_METADATA_FILENAME}", 'r') as f:
         metadata = json.load(f)
 
@@ -147,7 +147,9 @@ if __name__ == '__main__':
     # === Save Model Metadata ===
 
     metadata = {
-        'block_size': BLOCK_SIZE
+        'block_size': BLOCK_SIZE,
+        'accuracy': acc,
+        'loss': loss
     }
 
     metadata_pathname = f"{model_pathname}/{MODEL_METADATA_FILENAME}"
