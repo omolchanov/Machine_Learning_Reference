@@ -10,7 +10,7 @@ from datasets import load_dataset
 import numpy as np
 
 
-DATASET_SIZE = 200
+DATASET_SIZE = 100000
 
 DATA_DIRECTORY_PATH = 'data'
 TOKENIZER_FILENAME = 'tokenizer.pkl'

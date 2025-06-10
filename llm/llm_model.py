@@ -1,11 +1,14 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+
+
 import absl.logging
 absl.logging.set_verbosity(absl.logging.ERROR)
 
 import random
 import json
+import time
 
 import tensorflow as tf
 from tensorflow import keras
@@ -19,6 +22,11 @@ from llm_tokenizer import (
 
 import numpy as np
 
+# Limit TensorFlow to use only half the available threads
+cpu_limit = int(os.cpu_count() * 0.1)
+tf.config.threading.set_intra_op_parallelism_threads(cpu_limit)
+tf.config.threading.set_inter_op_parallelism_threads(cpu_limit)
+
 
 MODELS_DIRECTORY_PATH = 'models'
 MODEL_METADATA_FILENAME = 'model_metadata.json'
@@ -29,7 +37,7 @@ BATCH_SIZE = 64
 EMBED_DIMS = 64
 NUM_HEADS = 2
 FF_DIM = 128
-EPOCHS = 1
+EPOCHS = 2
 
 
 def get_dataset(data, block_size=BLOCK_SIZE, batch_size=BATCH_SIZE):
@@ -123,22 +131,27 @@ if __name__ == '__main__':
 
     model.compile(
         loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        optimizer='adam',
-        metrics=['accuracy']
+        optimizer='adam'
     )
     print('The model has been compiled')
 
     # === Train Model ===
 
+    start_time = time.time()
     model.fit(train_dataset, epochs=EPOCHS)
-    loss, acc = model.evaluate(train_dataset)
-    print(f"\nLoss: {loss:.3f}, Accuracy: {acc:.3f}")
+    end_time = time.time()
+
+    loss = model.evaluate(train_dataset)
+    training_duration = end_time - start_time
+
+    print(f"\nLoss: {loss:.3f}")
+    print(f"Total training time: {training_duration:.2f} seconds")
 
     # === Save Model ===
 
     dataset_size = metadata.get('dataset_size')
 
-    model_id = f"llm_model_{random.randint(0, 1000)}_{acc:.3f}_{dataset_size}"
+    model_id = f"llm_model_{random.randint(0, 1000)}_{dataset_size}"
     model_pathname = f"{MODELS_DIRECTORY_PATH}/{model_id}"
     model.save(model_pathname)
 
@@ -148,8 +161,8 @@ if __name__ == '__main__':
 
     metadata = {
         'block_size': BLOCK_SIZE,
-        'accuracy': acc,
-        'loss': loss
+        'loss': loss,
+        'training_duration': training_duration
     }
 
     metadata_pathname = f"{model_pathname}/{MODEL_METADATA_FILENAME}"
