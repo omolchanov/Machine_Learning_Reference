@@ -5,60 +5,31 @@ import absl.logging
 absl.logging.set_verbosity(absl.logging.ERROR)
 
 import random
+import json
 
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-from keras.preprocessing.text import Tokenizer
+
+from llm_tokenizer import (
+    DATA_DIRECTORY_PATH,
+    DS_METADATA_FILENAME,
+    DS_FIlENAME
+)
 
 import numpy as np
-from datasets import load_dataset
 
+
+MODELS_DIRECTORY_PATH = 'models'
+MODEL_METADATA_FILENAME = 'model_metadata.json'
 
 # === NN Parameters
-DATASET_SIZE = 10000
-
 BLOCK_SIZE = 128
 BATCH_SIZE = 64
 EMBED_DIMS = 64
 NUM_HEADS = 2
 FF_DIM = 128
 EPOCHS = 1
-
-DIRECTORY_PATH = 'models'
-
-
-# === 1. Load and Prepare Dataset ===
-
-# Load wikitext-2-raw-v1 from Hugging Face
-dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='train')
-print('The dataset is loaded')
-
-# Combine all lines into one big string (truncate to 50k chars for speed)
-raw_text = "\n".join(dataset["text"]).lower()[:DATASET_SIZE]
-
-
-# === 2. Tokenize the data
-
-# Character-level tokenizer
-tokenizer = Tokenizer(char_level=True, filters='', lower=True)
-tokenizer.fit_on_texts([raw_text])
-
-vocab_size = len(tokenizer.word_index) + 1  # add 1 for padding index (0)
-print('Vocalbulary size:', vocab_size)
-
-
-def encode(s):
-    return tokenizer.texts_to_sequences([s])[0]
-
-
-def decode(l):
-    return tokenizer.sequences_to_texts([l])[0]
-
-
-# Encode entire dataset
-data = np.array(encode(raw_text), dtype=np.int32)
-print('Encoded dataset shape:', data.shape[0])
 
 
 def get_dataset(data, block_size=BLOCK_SIZE, batch_size=BATCH_SIZE):
@@ -73,11 +44,7 @@ def get_dataset(data, block_size=BLOCK_SIZE, batch_size=BATCH_SIZE):
     return dataset.shuffle(1024).batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
 
-train_dataset = get_dataset(data)
-print('Train dataset is ready')
-
-
-# === 2. Transformer Block ===
+# === Transformer Layer ===
 
 class TransformerBlock(layers.Layer):
     def __init__(self, embed_dim=EMBED_DIMS, num_heads=NUM_HEADS, ff_dim=FF_DIM):
@@ -112,7 +79,7 @@ class TransformerBlock(layers.Layer):
         return config
 
 
-# === 3. Build Model ===
+# === Build Model ===
 
 def build_model(
         vocab_size,
@@ -134,55 +101,57 @@ def build_model(
     return keras.Model(inputs, x)
 
 
-model = build_model(vocab_size)
+if __name__ == '__main__':
+    # === Load and Prepare Dataset ===
 
-model.compile(
-    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-    optimizer='adam',
-    metrics=['accuracy']
-)
-print('The model has been compiled')
+    # Load dataset
+    data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
 
-# === 4. Train Model ===
+    # Load the metadata
+    with open(f"{DATA_DIRECTORY_PATH}/{DS_METADATA_FILENAME}", 'r') as f:
+        metadata = json.load(f)
 
-model.fit(train_dataset, epochs=EPOCHS)
-loss, acc = model.evaluate(train_dataset)
-print(f"\nLoss: {loss:.3f}, Accuracy: {acc:.3f}")
+    print('Dataset Metadata:\n', metadata, '\n')
 
-model_id = f"llm_model_{random.randint(0, 1000)}_{acc:.3f}_{DATASET_SIZE}"
-model.save(f"{DIRECTORY_PATH}/{model_id}")
+    train_dataset = get_dataset(data)
+    print('Train dataset is ready')
 
-print(f"The model has been saved to '/{DIRECTORY_PATH}/{model_id}'")
+    vocab_size = metadata.get('vocab_size')
+    print('Vocalbulary size:', vocab_size, '\n')
 
-# === 6. Generate Text ===
+    model = build_model(vocab_size)
 
+    model.compile(
+        loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        optimizer='adam',
+        metrics=['accuracy']
+    )
+    print('The model has been compiled')
 
-def generate_text(
-        start_text,
-        model=model,
-        tokenizer=tokenizer,
-        block_size=BLOCK_SIZE,
-        length=200,
-        temperature=1.0
-):
-    input_ids = tokenizer.texts_to_sequences([start_text])[0]
-    generated = input_ids[:]
+    # === Train Model ===
 
-    for _ in range(length):
-        context = generated[-block_size:]
-        if len(context) < block_size:
-            context = [0] * (block_size - len(context)) + context
-        x_input = tf.constant([context], dtype=tf.int32)
-        logits = model(x_input, training=False)
-        next_logits = logits[0, -1] / temperature
-        next_id = tf.random.categorical(tf.expand_dims(next_logits, 0), num_samples=1).numpy()[0][0]
-        generated.append(next_id)
+    model.fit(train_dataset, epochs=EPOCHS)
+    loss, acc = model.evaluate(train_dataset)
+    print(f"\nLoss: {loss:.3f}, Accuracy: {acc:.3f}")
 
-    return decode(generated)
+    # === Save Model ===
 
+    dataset_size = metadata.get('dataset_size')
 
-# === 7. Try Text Generation ===
+    model_id = f"llm_model_{random.randint(0, 1000)}_{acc:.3f}_{dataset_size}"
+    model_pathname = f"{MODELS_DIRECTORY_PATH}/{model_id}"
+    model.save(model_pathname)
 
-prompt = 'hello'
-response = generate_text(prompt)
-print("\nGenerated Text:\n", response)
+    print(f"\nThe model has been saved to {model_pathname}")
+
+    # === Save Model Metadata ===
+
+    metadata = {
+        'block_size': BLOCK_SIZE
+    }
+
+    metadata_pathname = f"{model_pathname}/{MODEL_METADATA_FILENAME}"
+    with open(metadata_pathname, 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+    print(f"The model metadata has been saved to {metadata_pathname}")
