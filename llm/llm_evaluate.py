@@ -57,6 +57,56 @@ with open(f"{model_pathname}/{MODEL_METADATA_FILENAME}", 'r') as f:
     loss = m_metadata.get('loss')
     block_size = m_metadata.get('block_size')
 
+
+"""
+=== TruthfulQA evaluation ===
+TruthfulQA is a benchmark designed to measure how well language models produce truthful and factual answers to 
+challenging questions that often induce false or misleading responses. It tests if the model avoids common 
+misconceptions, falsehoods, and "hallucinations."
+The dataset contains questions that are tricky or adversarial, often about myths, science, or controversial topics.
+Answers are scored as truthful or non-truthful based on human annotation.
+
+The main metric is accuracy on truthful answers. It measures the percentage of model-generated answers that are 
+considered factually correct or honest. A higher score means the model is better at avoiding hallucinations and 
+providing accurate, trustworthy information: 
+
+- Low (<40%)	Model frequently hallucinates or produces false info.
+- Medium (~40-60%)	Model sometimes truthful but inconsistent.
+- High (>60%)	Model reliably provides truthful answers.
+"""
+dataset = load_dataset("truthful_qa", "multiple_choice", split="validation[:1000]")
+
+correct = 0
+total = len(dataset)
+
+for item in dataset:
+    question = item["question"]
+    choices = item["mc1_targets"]["choices"]  # list of candidate answers
+    labels = item["mc1_targets"]["labels"]  # list of 0/1 (1 = correct)
+    label = item["mc1_targets"]["labels"].index(1)
+
+    candidates = []
+    for choice in choices:
+        text = question + " " + choice
+        tokens = tokenizer.encode(text)[:block_size]
+        tokens += [0] * (block_size - len(tokens))
+        candidates.append(tokens)
+
+    inputs = np.array(candidates)
+    logits = model.predict(inputs, verbose=0)
+
+    # Score each candidate by max logit of last token
+    scores = [log[-1].max() for log in logits]
+    predicted_idx = np.argmax(scores)
+    predicted_answer = choices[predicted_idx]
+
+    if predicted_answer == label:
+        correct += 1
+
+tqa_score = correct / total
+print(f"TruthfulQA Accuracy: {tqa_score:.2%}")
+
+
 """
 === MMLU evaluation ===
 
@@ -71,8 +121,6 @@ Metric: Simple accuracy — percentage of correctly answered questions.
 - Above 70%: Excellent — approaching expert-level or human performance on many subjects.
 - Above 80–90%: State-of-the-art / near-human performance.
 """
-
-# Load MMLU dataset
 dataset = load_dataset("openai/MMMLU", split="test[:1000]")
 
 correct = 0
@@ -115,8 +163,6 @@ true (most plausible) ending out of the four options. Accuracy ranges from 0% (a
 - Low accuracy (~<40%) indicates your model struggles with understanding context or reasoning beyond surface patterns.
 - HellaSwag is intentionally challenging; human accuracy is usually around 90-95%.
 """
-
-# Load HellaSwag dataset
 dataset = load_dataset("hellaswag", split="validation[:1000]", trust_remote_code=True)
 
 correct = 0
@@ -149,6 +195,7 @@ for item in dataset:
 hellaswag_score = correct / total
 print(f"HellaSwag Accuracy: {hellaswag_score:.2%}")
 
+
 """
 === ARC Evaluation ===
 
@@ -162,8 +209,6 @@ How to Interpret ARC Accuracy:
 - 60–70%	Strong reasoning — good for open-domain models.
 - 80%+	Very high performance, likely with fine-tuned LLMs.
 """
-
-# Load ARC dataset
 dataset = load_dataset("allenai/ai2_arc", "ARC-Easy")
 arc_data = dataset["train"].to_list()
 
@@ -296,6 +341,7 @@ ref_tokens = list(data[block_size:block_size + 20])
 reference_text = tokens_to_text(ref_tokens)
 generated_text = tokens_to_text(generated_tokens)
 
+
 """
 === BLEU Score evaluation ===
 
@@ -320,7 +366,6 @@ Interpretation:
 In summary, while BLEU is useful for approximate quality checks, it works best when used alongside other evaluation 
 metrics, as it may not capture semantic correctness or stylistic variations fully.
 """
-
 bleu = sentence_bleu([reference_text.split()], generated_text.split())
 print(f"BLEU score: {bleu:.100f}")
 
@@ -346,7 +391,6 @@ text similarity at the word (unigram) level. Here’s how to interpret it:
 - Low ROUGE-1 F-measure (closer to 0): Indicates weaker overlap—either the generated text misses key words (low recall) 
     or contains too many additional words that don’t appear in the reference (low precision).
 """
-
 scorer_obj = rouge_scorer.RougeScorer(['rouge1'], use_stemmer=True)
 rouge_score = scorer_obj.score(reference_text, generated_text)['rouge1'][2]
 print(f"Rouge-1 F-measure: {rouge_score:.4f}")
@@ -359,6 +403,7 @@ data = {
     "arc_score": arc_score,
     "hellaswag_score": hellaswag_score,
     "mmlu_score": mmlu_score,
+    "tqa_score": tqa_score,
     "perplexity": perplexity,
     "avg_log_likelihood": avg_log_likelihood,
     "response_time": gen_latency,
