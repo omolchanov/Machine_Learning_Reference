@@ -17,7 +17,7 @@ BATCH_SIZE = 64
 EMBED_DIMS = 64
 NUM_HEADS = 2
 FF_DIM = 128
-EPOCHS = 2
+EPOCHS = 5
 
 if __name__ == '__main__':
 
@@ -43,4 +43,7 @@ if __name__ == '__main__':
 
     print(f"Steps per epoch: {steps_per_epoch}")
     print(f"Total training steps: {total_training_steps}")
-    print(f"Approximate training time: {total_training_time:.0f} seconds | {total_training_time / 60:.1f} minutes")
+    print(f"Approximate training time: "
+          f"{total_training_time:.0f} seconds | "
+          f"{total_training_time / 60:.1f} minutes | "
+          f"{total_training_time/ 3600:.1f} hours")

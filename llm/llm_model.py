@@ -20,7 +20,7 @@ from llm_tokenizer import (
 
 import numpy as np
 
-# Limit TensorFlow to use only half the available threads
+# Limit TensorFlow for CPU
 cpu_limit = int(os.cpu_count() * 0.1)
 tf.config.threading.set_intra_op_parallelism_threads(cpu_limit)
 tf.config.threading.set_inter_op_parallelism_threads(cpu_limit)
@@ -35,19 +35,24 @@ BATCH_SIZE = 64
 EMBED_DIMS = 64
 NUM_HEADS = 2
 FF_DIM = 128
-EPOCHS = 2
+EPOCHS = 5
 
 
 def get_dataset(data, block_size=BLOCK_SIZE, batch_size=BATCH_SIZE):
-    X, y = [], []
-    for i in range(len(data) - block_size):
-        X.append(data[i:i + block_size])
-        y.append(data[i + 1:i + block_size + 1])
-    X = np.array(X, dtype=np.int32)
-    y = np.array(y, dtype=np.int32)
+    data = tf.convert_to_tensor(data, dtype=tf.int32)
 
-    dataset = tf.data.Dataset.from_tensor_slices((X, y))
-    return dataset.shuffle(1024).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    # Create a dataset from the flat data array
+    ds = tf.data.Dataset.from_tensor_slices(data)
+
+    # Use window to create (X, y) pairs lazily and efficiently
+    ds = ds.window(block_size + 1, shift=1, drop_remainder=True)
+    ds = ds.flat_map(lambda window: window.batch(block_size + 1))
+
+    # Split into input (X) and target (y)
+    ds = ds.map(lambda window: (window[:-1], window[1:]), num_parallel_calls=tf.data.AUTOTUNE)
+
+    # Shuffle, batch, and prefetch
+    return ds.shuffle(1024).batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
 
 # === Transformer Layer ===
@@ -132,8 +137,10 @@ if __name__ == '__main__':
 
     # === Train Model and benchmark it ===
 
+    steps_per_epoch = (len(data) - BLOCK_SIZE) // BATCH_SIZE
+
     start_time = time.time()
-    model.fit(train_dataset, epochs=EPOCHS)
+    model.fit(train_dataset, epochs=EPOCHS, steps_per_epoch=steps_per_epoch)
     end_time = time.time()
 
     loss = model.evaluate(train_dataset)
