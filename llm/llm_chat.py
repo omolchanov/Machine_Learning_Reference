@@ -7,6 +7,8 @@ import pickle
 import tensorflow as tf
 import numpy as np
 
+from llm_tokenizer import LlmTokenizer
+
 from llm_tokenizer import (
     DATA_DIRECTORY_PATH,
     DS_FIlENAME,
@@ -22,11 +24,12 @@ from llm_model import (
 with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_FILENAME}", 'rb') as f:
     tokenizer = pickle.load(f)
 
+
 # Load dataset
 data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
 
 # Load the model
-model_id = 'llm_model_550_0.107_200'
+model_id = 'llm_model_690_100000'
 model = tf.keras.models.load_model(f"{MODELS_DIRECTORY_PATH}/{model_id}")
 
 print(f"Model {model_id} has been loaded")

@@ -14,6 +14,8 @@ nltk.download('punkt', quiet=True)
 from nltk.translate.bleu_score import sentence_bleu
 from rouge_score import rouge_scorer
 
+from llm_tokenizer import LlmTokenizer
+
 from datasets import load_dataset
 
 from llm_model import (
@@ -24,21 +26,23 @@ from llm_model import (
 from llm_tokenizer import (
     DATA_DIRECTORY_PATH,
     DS_FIlENAME,
-    TOKENIZER_FILENAME
+    TOKENIZER_OBJ_FILENAME
 )
+
 
 MODEL_EVAL_DATA_FILENAME = 'model_evaluation.json'
 
 
-# Load tokenizer
-with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_FILENAME}", 'rb') as f:
+# Load tokenizer obkect
+with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_OBJ_FILENAME}", 'rb') as f:
     tokenizer = pickle.load(f)
+
 
 # Load dataset
 data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
 
 # Load the model
-model_id = 'llm_model_702_0.069_200'
+model_id = 'llm_model_690_100000'
 model_pathname = f"{MODELS_DIRECTORY_PATH}/{model_id}"
 
 model = tf.keras.models.load_model(model_pathname)
@@ -53,34 +57,143 @@ with open(f"{model_pathname}/{MODEL_METADATA_FILENAME}", 'r') as f:
     loss = m_metadata.get('loss')
     block_size = m_metadata.get('block_size')
 
-# # Load ARC dataset (replace with actual dataset path)
-# dataset = load_dataset("allenai/ai2_arc", "ARC-Challenge")
-# arc_data = dataset["train"].to_list()
-#
-#
-# correct = 0
-# total = len(arc_data)
-#
-# # Evaluate ARC accuracy
-# for item in arc_data:
-#     question = item["question"]
-#     choices = item["choices"]
-#     correct_answer = item["choices"][item["answerKey"]]
-#
-#     # Tokenize input question
-#     input_tokens = tokenizer.encode(question)[:block_size]  # Ensure input fits model's block size
-#     input_padded = np.pad(input_tokens, (0, block_size - len(input_tokens)), mode='constant')
-#
-#     # Get model prediction
-#     logits = model.predict(np.array([input_padded]), verbose=0)
-#     predicted_token = np.argmax(logits[0, -1])  # Get the highest probability token
-#     predicted_answer = tokenizer.decode([predicted_token])  # Convert back to text
-#
-#     if predicted_answer == correct_answer:
-#         correct += 1
-#
-# accuracy = correct / total
-# print(f"ARC Accuracy: {accuracy:.2%}")
+"""
+=== MMLU evaluation ===
+
+MMLU Metric (Massive Multitask Language Understanding)
+What it measures: Accuracy on a wide range of multiple-choice questions from 57 subjects, 
+testing broad knowledge and reasoning.
+
+Metric: Simple accuracy — percentage of correctly answered questions.
+- Below 30%: Poor — model struggles with general knowledge and reasoning.
+- 30%–50%: Moderate — some knowledge but many gaps.
+- 50%–70%: Good — solid general understanding, comparable to strong baseline models.
+- Above 70%: Excellent — approaching expert-level or human performance on many subjects.
+- Above 80–90%: State-of-the-art / near-human performance.
+"""
+
+# Load MMLU dataset
+dataset = load_dataset("openai/MMMLU", split="test[:1000]")
+
+correct = 0
+total = len(dataset)
+
+for item in dataset:
+    question = item["Question"]
+    choices = [item["A"], item["B"], item["C"], item["D"]]
+    label = ["A", "B", "C", "D"].index(item["Answer"])
+
+    candidates = []
+    for choice in choices:
+        text = question + " " + choice
+        tokens = tokenizer.encode(text)[:block_size]
+        tokens += [0] * (block_size - len(tokens))
+        candidates.append(tokens)
+
+    inputs = np.array(candidates)
+    logits = model.predict(inputs, verbose=0)
+    scores = [log[-1].max() for log in logits]
+    predicted = np.argmax(scores)
+
+    if predicted == label:
+        correct += 1
+
+mmlu_score = correct / total
+print(f"MMLU Accuracy: {mmlu_score:.2%}")
+
+
+"""
+=== HellaSwag evaluation ===
+
+HellaSwag is a benchmark dataset designed to test commonsense reasoning and grounded natural language understanding. 
+Models are given a context and four possible endings, and the task is to choose the most plausible continuation.
+
+The primary metric for HellaSwag is accuracy. It measures the percentage of times your model correctly picks the one 
+true (most plausible) ending out of the four options. Accuracy ranges from 0% (always wrong) to 100% (always right).
+
+- High accuracy (~>80%) means your model is strong at commonsense reasoning and understanding real-world situations.
+- Low accuracy (~<40%) indicates your model struggles with understanding context or reasoning beyond surface patterns.
+- HellaSwag is intentionally challenging; human accuracy is usually around 90-95%.
+"""
+
+# Load HellaSwag dataset
+dataset = load_dataset("hellaswag", split="validation[:1000]", trust_remote_code=True)
+
+correct = 0
+total = len(dataset)
+
+for item in dataset:
+    context = item["ctx"]
+    choices = item["endings"]
+    label = item["label"]
+
+    candidates = [context + " " + ending for ending in choices]
+
+    # Tokenize and pad each candidate
+    inputs = []
+    for text in candidates:
+        tokens = tokenizer.encode(text)[:block_size]
+        tokens += [0] * (block_size - len(tokens))
+        inputs.append(tokens)
+
+    inputs = np.array(inputs)
+
+    # Predict and score
+    logits = model.predict(inputs, verbose=0)
+    scores = [log[-1].max() for log in logits]
+    predicted = np.argmax(scores)
+
+    if predicted == label:
+        correct += 1
+
+hellaswag_score = correct / total
+print(f"HellaSwag Accuracy: {hellaswag_score:.2%}")
+
+"""
+=== ARC Evaluation ===
+
+ARC stands for the AI2 Reasoning Challenge. It’s a benchmark designed to test reasoning and commonsense intelligence 
+in AI systems. The ARC dataset consists of multiple-choice science questions (from grade school level science exams) 
+with 4 answer choices. Each question comes with a context, question text, and answer options.
+
+How to Interpret ARC Accuracy: 
+- 25% (random)	Model is guessing at random (baseline for 4 choices).
+- 40–50%	Somewhat better than chance — picking up patterns.
+- 60–70%	Strong reasoning — good for open-domain models.
+- 80%+	Very high performance, likely with fine-tuned LLMs.
+"""
+
+# Load ARC dataset
+dataset = load_dataset("allenai/ai2_arc", "ARC-Easy")
+arc_data = dataset["train"].to_list()
+
+correct = 0
+total = len(arc_data)
+
+# Evaluate ARC accuracy
+for item in arc_data:
+    question = item["question"]
+    choices = item["choices"]
+
+    labels = item["choices"]["label"]
+    texts = item["choices"]["text"]
+    answer_key = item["answerKey"]
+    correct_answer = texts[labels.index(answer_key)]
+
+    # Tokenize input question
+    input_tokens = tokenizer.encode(question)[:block_size]  # Ensure input fits model's block size
+    input_padded = np.pad(input_tokens, (0, block_size - len(input_tokens)), mode='constant')
+
+    # Get model prediction
+    logits = model.predict(np.array([input_padded]), verbose=0)
+    predicted_token = np.argmax(logits[0, -1])  # Get the highest probability token
+    predicted_answer = tokenizer.decode([predicted_token])  # Convert back to text
+
+    if predicted_answer == correct_answer:
+        correct += 1
+
+arc_score = correct / total
+print(f"ARC Accuracy: {arc_score:.2%}")
 
 
 """
@@ -113,8 +226,6 @@ Log-likelihood is negative of cross-entropy loss
 """
 avg_log_likelihood = -loss
 print(f"Average log-likelihood per token: {avg_log_likelihood}")
-
-
 
 
 def generate_text(model, seed_tokens, max_length=20):
@@ -241,12 +352,13 @@ rouge_score = scorer_obj.score(reference_text, generated_text)['rouge1'][2]
 print(f"Rouge-1 F-measure: {rouge_score:.4f}")
 
 
-
-
 # === Save Model Evaluation data ===
 
 data = {
     "model": model_id,
+    "arc_score": arc_score,
+    "hellaswag_score": hellaswag_score,
+    "mmlu_score": mmlu_score,
     "perplexity": perplexity,
     "avg_log_likelihood": avg_log_likelihood,
     "response_time": gen_latency,

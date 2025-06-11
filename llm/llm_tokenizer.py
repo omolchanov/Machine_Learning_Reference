@@ -10,10 +10,11 @@ from datasets import load_dataset
 import numpy as np
 
 
-DATASET_SIZE = 100000
+DATASET_SIZE = 200
 
 DATA_DIRECTORY_PATH = 'data'
 TOKENIZER_FILENAME = 'tokenizer.pkl'
+TOKENIZER_OBJ_FILENAME = 'tokenizer_obj.pkl'
 DS_FIlENAME = 'dataset.npy'
 DS_METADATA_FILENAME = 'ds_metadata.json'
 
@@ -46,6 +47,10 @@ class LlmTokenizer:
         # Encode entire dataset
         data = np.array(self.encode(raw_text), dtype=np.int32)
         print('Encoded dataset shape:', data.shape[0])
+
+        # Save the LLM tokenizer object
+        with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_OBJ_FILENAME}", 'wb') as f:
+            pickle.dump(self, f)
 
         # Save the tokenizer
         with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_FILENAME}", 'wb') as f:
