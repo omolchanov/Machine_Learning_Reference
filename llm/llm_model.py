@@ -112,18 +112,15 @@ if __name__ == '__main__':
 
     # Load dataset
     data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
+    train_dataset = get_dataset(data)
+    print('Train dataset is ready')
 
     # Load the dataset metadata
     with open(f"{DATA_DIRECTORY_PATH}/{DS_METADATA_FILENAME}", 'r') as f:
         metadata = json.load(f)
+        vocab_size = metadata.get('vocab_size')
 
-    print('Dataset Metadata:\n', metadata, '\n')
-
-    train_dataset = get_dataset(data)
-    print('Train dataset is ready')
-
-    vocab_size = metadata.get('vocab_size')
-    print('Vocalbulary size:', vocab_size, '\n')
+        print('Dataset Metadata:\n', metadata, '\n')
 
     model = build_model(vocab_size)
 
@@ -133,7 +130,7 @@ if __name__ == '__main__':
     )
     print('The model has been compiled')
 
-    # === Train Model ===
+    # === Train Model and benchmark it ===
 
     start_time = time.time()
     model.fit(train_dataset, epochs=EPOCHS)
@@ -142,8 +139,11 @@ if __name__ == '__main__':
     loss = model.evaluate(train_dataset)
     training_duration = end_time - start_time
 
+    n_params = model.count_params()
+
     print(f"\nLoss: {loss:.3f}")
     print(f"Total training time: {training_duration:.2f} seconds")
+    print(f"Number of parameters: {n_params}")
 
     # === Save Model ===
 
@@ -160,7 +160,9 @@ if __name__ == '__main__':
     metadata = {
         'block_size': BLOCK_SIZE,
         'loss': loss,
-        'training_duration': training_duration
+        'training_duration': training_duration,
+        'dataset_size': dataset_size,
+        'n_parameters': n_params
     }
 
     metadata_pathname = f"{model_pathname}/{MODEL_METADATA_FILENAME}"

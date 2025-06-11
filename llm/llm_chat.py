@@ -29,7 +29,7 @@ with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_FILENAME}", 'rb') as f:
 data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
 
 # Load the model
-model_id = 'llm_model_690_100000'
+model_id = 'llm_model_747_200'
 model = tf.keras.models.load_model(f"{MODELS_DIRECTORY_PATH}/{model_id}")
 
 print(f"Model {model_id} has been loaded")

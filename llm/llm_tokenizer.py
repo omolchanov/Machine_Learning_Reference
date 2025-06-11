@@ -10,7 +10,7 @@ from datasets import load_dataset
 import numpy as np
 
 
-DATASET_SIZE = 200
+DATASET_SIZE = 100
 
 DATA_DIRECTORY_PATH = 'data'
 TOKENIZER_FILENAME = 'tokenizer.pkl'
@@ -33,40 +33,62 @@ class LlmTokenizer:
 
     def tokenize_and_get_dataset(self):
 
-        # Load wikitext-2-raw-v1 from Hugging Face
-        dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='train')
-        print('The dataset is loaded')
+        # Load Books Corpus dataset from Hugging Face
+        books_corp_ds = load_dataset('bookcorpus', split=f'train[:{DATASET_SIZE}]', trust_remote_code=True)
+        print('The Book Corpus dataset is loaded')
 
-        # Combine all lines into one big string (truncate to 50k chars for speed)
-        raw_text = "\n".join(dataset["text"]).lower()[:DATASET_SIZE]
+        # Load wikitext-2-raw-v1 from Hugging Face
+        wikitext_ds = load_dataset('wikitext', 'wikitext-2-raw-v1', split=f'train[:{DATASET_SIZE}]')
+        print('The Wiki dataset is loaded')
+
+        # Load WikiText-103
+        wikitext103_ds = load_dataset('wikitext', 'wikitext-103-raw-v1', split=f'train[:{DATASET_SIZE}]')
+        print('WikiText-103 dataset loaded')
+
+        # Combine all lines into one big string (truncate to DATASET_SIZE chars for speed)
+        books_corp_text = "\n".join(books_corp_ds["text"]).lower()
+        wikitext_text = "\n".join(wikitext_ds["text"]).lower()
+        wikitext103_text = "\n".join(wikitext103_ds["text"]).lower()
+
+        # Combine all datasets
+        combined_text = books_corp_text + "\n" + wikitext_text + "\n" + wikitext103_text
 
         # Tokenize the data
-        self.tokenizer.fit_on_texts([raw_text])
+        self.tokenizer.fit_on_texts([combined_text])
         vocab_size = len(self.tokenizer.word_index) + 1  # add 1 for padding index (0)
+        print('\nVocalbulary size:', vocab_size)
 
         # Encode entire dataset
-        data = np.array(self.encode(raw_text), dtype=np.int32)
+        data = np.array(self.encode(combined_text), dtype=np.int32)
         print('Encoded dataset shape:', data.shape[0])
 
         # Save the LLM tokenizer object
-        with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_OBJ_FILENAME}", 'wb') as f:
+        pathname = f"{DATA_DIRECTORY_PATH}/{TOKENIZER_OBJ_FILENAME}"
+        with open(pathname, 'wb') as f:
             pickle.dump(self, f)
+            print(f"\nLLM tokenizer object has been saved to {pathname}")
 
         # Save the tokenizer
-        with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_FILENAME}", 'wb') as f:
+        pathname = f"{DATA_DIRECTORY_PATH}/{TOKENIZER_FILENAME}"
+        with open(pathname, 'wb') as f:
             pickle.dump(self.tokenizer, f)
+            print(f"LLM tokenizer has been saved to {pathname}")
 
         # Save the dataset
-        np.save(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}", data)
+        pathname = f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}"
+        np.save(pathname, data)
+        print(f"Dataset has been saved to {pathname}")
 
         # Save metadata to JSON
         metadata = {
-            'dataset_size': DATASET_SIZE,
+            'dataset_size': DATASET_SIZE * 3,  # 3 datasets used for training
             'vocab_size': vocab_size
         }
 
-        with open(f"{DATA_DIRECTORY_PATH}/{DS_METADATA_FILENAME}", 'w') as f:
+        pathname = f"{DATA_DIRECTORY_PATH}/{DS_METADATA_FILENAME}"
+        with open(pathname, 'w') as f:
             json.dump(metadata, f, indent=2)
+            print(f"Metadata {metadata} has been saved to {pathname}")
 
 
 if __name__ == '__main__':

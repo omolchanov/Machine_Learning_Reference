@@ -9,6 +9,8 @@ Calculation Overview
     4. Total Estimated Training Time = Time Per Step * Total Training Steps
 """
 
+import numpy as np
+
 # Hyperparameters
 BLOCK_SIZE = 128
 BATCH_SIZE = 64
@@ -17,12 +19,15 @@ NUM_HEADS = 2
 FF_DIM = 128
 EPOCHS = 2
 
-DATASET_SIZE = 100000
-
 if __name__ == '__main__':
 
+    # Load the dataset and get its size
+    encoded_data = np.load("data/dataset.npy")
+    tokenized_length = len(encoded_data)
+
     # Compute steps per epoch
-    steps_per_epoch = DATASET_SIZE // BATCH_SIZE
+    num_samples = tokenized_length - BLOCK_SIZE
+    steps_per_epoch = num_samples // BATCH_SIZE
     total_training_steps = steps_per_epoch * EPOCHS
 
 
