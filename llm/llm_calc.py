@@ -24,6 +24,7 @@ if __name__ == '__main__':
     # Load the dataset and get its size
     encoded_data = np.load("data/dataset.npy")
     tokenized_length = len(encoded_data)
+    print(f"Tokens number: {tokenized_length}")
 
     # Compute steps per epoch
     num_samples = tokenized_length - BLOCK_SIZE

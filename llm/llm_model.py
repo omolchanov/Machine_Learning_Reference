@@ -21,7 +21,7 @@ from llm_tokenizer import (
 import numpy as np
 
 # Limit TensorFlow for CPU
-cpu_limit = int(os.cpu_count() * 0.1)
+cpu_limit = int(os.cpu_count() * 0.5)
 tf.config.threading.set_intra_op_parallelism_threads(cpu_limit)
 tf.config.threading.set_inter_op_parallelism_threads(cpu_limit)
 
@@ -58,36 +58,69 @@ def get_dataset(data, block_size=BLOCK_SIZE, batch_size=BATCH_SIZE):
 # === Transformer Layer ===
 
 class TransformerBlock(layers.Layer):
-    def __init__(self, embed_dim=EMBED_DIMS, num_heads=NUM_HEADS, ff_dim=FF_DIM):
+    def __init__(self, embed_dim=EMBED_DIMS, num_heads=NUM_HEADS, ff_dim=FF_DIM, dropout_rate=0.1):
         super().__init__()
-        self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+        self.att = layers.MultiHeadAttention(
+            num_heads=num_heads,
+            key_dim=embed_dim,
+            dropout=dropout_rate
+        )
+        # Improved FFN with GELU activation and dropout
         self.ffn = keras.Sequential([
-            layers.Dense(ff_dim, activation="relu"),
+            layers.Dense(ff_dim, activation="gelu"),
+            layers.Dropout(dropout_rate),
             layers.Dense(embed_dim),
+            layers.Dropout(dropout_rate)
         ])
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+        self.dropout1 = layers.Dropout(dropout_rate)
+        self.dropout2 = layers.Dropout(dropout_rate)
 
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.ff_dim = ff_dim
+        self.dropout_rate = dropout_rate
 
     @tf.function
-    def call(self, inputs):
-        attn_output = self.att(inputs, inputs)
-        out1 = self.layernorm1(inputs + attn_output)
-        ffn_output = self.ffn(out1)
-        return self.layernorm2(out1 + ffn_output)
+    def call(self, inputs, training=None, mask=None):
+        # Pre-norm architecture (modern approach)
+        norm_inputs = self.layernorm1(inputs)
+        attn_output = self.att(norm_inputs, norm_inputs, attention_mask=mask, training=training)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = inputs + attn_output  # Residual connection
+
+        norm_out1 = self.layernorm2(out1)
+        ffn_output = self.ffn(norm_out1, training=training)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        return out1 + ffn_output  # Residual connection
 
     def get_config(self):
         config = super().get_config()
         config.update({
             "embed_dim": self.embed_dim,
             "num_heads": self.num_heads,
-            "ff_dim": self.ff_dim
+            "ff_dim": self.ff_dim,
+            "dropout_rate": self.dropout_rate
         })
-
         return config
+
+
+def get_sinusoidal_encoding(seq_len, embed_dim):
+    """Generate sinusoidal positional encodings"""
+    positions = tf.range(seq_len, dtype=tf.float32)[:, tf.newaxis]
+    dims = tf.range(embed_dim, dtype=tf.float32)[tf.newaxis, :]
+
+    angles = positions / tf.pow(10000.0, (2 * (dims // 2)) / tf.cast(embed_dim, tf.float32))
+
+    # Apply sin to even indices, cos to odd indices
+    pos_encoding = tf.where(
+        tf.cast(dims % 2, tf.bool),
+        tf.cos(angles),
+        tf.sin(angles)
+    )
+
+    return pos_encoding[tf.newaxis, ...]
 
 
 # === Build Model ===
@@ -97,19 +130,77 @@ def build_model(
         block_size=BLOCK_SIZE,
         embed_dim=EMBED_DIMS,
         num_heads=NUM_HEADS,
-        ff_dim=FF_DIM
+        ff_dim=FF_DIM,
+        num_layers=6,  # Multiple transformer layers
+        dropout_rate=0.1
 ):
     inputs = layers.Input(shape=(block_size,))
+
+    # Token embeddings with scaling
     x = layers.Embedding(vocab_size, embed_dim)(inputs)
+    x = x * tf.math.sqrt(tf.cast(embed_dim, tf.float32))  # Scale embeddings
 
-    # Add sinusoidal positional encoding manually
-    positions = tf.range(start=0, limit=block_size, delta=1)
-    position_embeddings = layers.Embedding(input_dim=block_size, output_dim=embed_dim)(positions)
-    x = x + position_embeddings
+    # Add sinusoidal positional encoding
+    pos_encoding = get_sinusoidal_encoding(block_size, embed_dim)
+    x = x + pos_encoding
 
-    x = TransformerBlock(embed_dim, num_heads, ff_dim)(x)
-    x = layers.Dense(vocab_size)(x)
-    return keras.Model(inputs, x)
+    # Input dropout
+    x = layers.Dropout(dropout_rate)(x)
+
+    # Create causal mask for autoregressive generation
+    causal_mask = tf.linalg.band_part(tf.ones((block_size, block_size)), -1, 0)
+    causal_mask = tf.where(causal_mask == 0, -1e9, 0.0)
+
+    # Stack multiple transformer blocks
+    for i in range(num_layers):
+        x = TransformerBlock(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            ff_dim=ff_dim,
+            dropout_rate=dropout_rate
+        )(x, mask=causal_mask)
+
+    # Final layer norm
+    x = layers.LayerNormalization(epsilon=1e-6)(x)
+
+    # Output projection
+    outputs = layers.Dense(vocab_size, use_bias=False)(x)
+
+    return keras.Model(inputs, outputs)
+
+
+def create_optimizer_with_warmup(learning_rate=1e-4, warmup_steps=4000, embed_dim=EMBED_DIMS):
+    """Create optimizer with learning rate warmup schedule"""
+    lr_schedule = keras.optimizers.schedules.PolynomialDecay(
+        initial_learning_rate=learning_rate,
+        decay_steps=warmup_steps,
+        end_learning_rate=learning_rate * 0.1,
+        power=0.5
+    )
+
+    return keras.optimizers.Adam(
+        learning_rate=lr_schedule,
+        beta_1=0.9,
+        beta_2=0.98,
+        epsilon=1e-9
+    )
+
+
+def label_smoothing_loss(y_true, y_pred, smoothing=0.1):
+    """Label smoothing for better generalization - works with sparse integer labels"""
+    vocab_size = tf.cast(tf.shape(y_pred)[-1], tf.float32)
+    confidence = 1.0 - smoothing
+    low_confidence = smoothing / (vocab_size - 1.0)
+
+    # Convert sparse labels to one-hot if needed
+    if len(y_true.shape) < len(y_pred.shape):
+        y_true = tf.one_hot(tf.cast(y_true, tf.int32), depth=tf.cast(vocab_size, tf.int32))
+
+    # Apply label smoothing
+    y_true = tf.cast(y_true, tf.float32)
+    soft_targets = y_true * confidence + (1.0 - y_true) * low_confidence
+
+    return keras.losses.categorical_crossentropy(soft_targets, y_pred, from_logits=True)
 
 
 if __name__ == '__main__':
@@ -128,10 +219,11 @@ if __name__ == '__main__':
         print('Dataset Metadata:\n', metadata, '\n')
 
     model = build_model(vocab_size)
+    optimizer = create_optimizer_with_warmup(learning_rate=1e-4, warmup_steps=4000)
 
     model.compile(
-        loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        optimizer='adam'
+        loss=label_smoothing_loss,
+        optimizer=optimizer
     )
     print('The model has been compiled')
 

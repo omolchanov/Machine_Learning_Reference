@@ -9,8 +9,8 @@ from datasets import load_dataset
 
 import numpy as np
 
-
-DATASET_SIZE = int(6 * 10e2)
+DATASET_SIZE = 1000
+# DATASET_SIZE = int(6 * 10e2) # potential dataset for training
 
 DATA_DIRECTORY_PATH = 'data'
 TOKENIZER_FILENAME = 'tokenizer.pkl'
