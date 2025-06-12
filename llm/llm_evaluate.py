@@ -1,12 +1,10 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-import json
 import math
 import time
-import pickle
 
-import tensorflow as tf
+from datasets import load_dataset
 import numpy as np
 
 import nltk
@@ -15,54 +13,20 @@ from nltk.translate.bleu_score import sentence_bleu
 from rouge_score import rouge_scorer
 
 from llm_dataset import LlmTokenizer
-from llm_model import fast_label_smoothing_loss
-
-from datasets import load_dataset
-
-from llm_model import (
-    MODELS_DIRECTORY_PATH,
-    MODEL_METADATA_FILENAME
-)
-
-from llm_dataset import (
-    DATA_DIRECTORY_PATH,
-    DS_FIlENAME,
-    TOKENIZER_OBJ_FILENAME
-)
+from llm_model_entity import LlmModelEntity
+from llm_dataset import LlmDataset
+from env_config import *
 
 
-MODEL_EVAL_DATA_FILENAME = 'model_evaluation.json'
-N_QUESTIONS = 100
+MODEL_ID = 'llm_model_321_30'
 
+tokenizer = LlmTokenizer.load_obj()
+data = LlmDataset.load_ds()
+model = LlmModelEntity.load(MODEL_ID)
+m_metadata = LlmModelEntity.load_metadata(MODEL_ID)
 
-# Load tokenizer obkect
-with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_OBJ_FILENAME}", 'rb') as f:
-    tokenizer = pickle.load(f)
-
-
-# Load dataset
-data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
-
-# Load the model
-model_id = 'llm_model_114_3000'
-model_pathname = f"{MODELS_DIRECTORY_PATH}/{model_id}"
-
-model = tf.keras.models.load_model(
-    model_pathname,
-    custom_objects={
-        'fast_label_smoothing_loss': fast_label_smoothing_loss
-    })
-
-print(f"Model {model_id} has been loaded")
-
-# Load the model's metadata
-with open(f"{model_pathname}/{MODEL_METADATA_FILENAME}", 'r') as f:
-    m_metadata = json.load(f)
-    print(f"The Model's metadata has been loaded\n{m_metadata}\n")
-
-    # Setting the required model's metadata
-    loss = m_metadata.get('loss')
-    block_size = m_metadata.get('block_size')
+block_size = m_metadata.get('block_size')
+loss = m_metadata.get('loss')
 
 
 """
@@ -216,36 +180,36 @@ How to Interpret ARC Accuracy:
 - 60–70%	Strong reasoning — good for open-domain models.
 - 80%+	Very high performance, likely with fine-tuned LLMs.
 """
-# dataset = load_dataset("allenai/ai2_arc", "ARC-Easy")
-# arc_data = dataset["train"].to_list()
-#
-# correct = 0
-# total = len(arc_data)
-#
-# # Evaluate ARC accuracy
-# for item in arc_data:
-#     question = item["question"]
-#     choices = item["choices"]
-#
-#     labels = item["choices"]["label"]
-#     texts = item["choices"]["text"]
-#     answer_key = item["answerKey"]
-#     correct_answer = texts[labels.index(answer_key)]
-#
-#     # Tokenize input question
-#     input_tokens = tokenizer.encode(question)[:block_size]  # Ensure input fits model's block size
-#     input_padded = np.pad(input_tokens, (0, block_size - len(input_tokens)), mode='constant')
-#
-#     # Get model prediction
-#     logits = model.predict(np.array([input_padded]), verbose=0)
-#     predicted_token = np.argmax(logits[0, -1])  # Get the highest probability token
-#     predicted_answer = tokenizer.decode([predicted_token])  # Convert back to text
-#
-#     if predicted_answer == correct_answer:
-#         correct += 1
-#
-# arc_score = correct / total
-# print(f"ARC Accuracy: {arc_score:.2%}")
+dataset = load_dataset("allenai/ai2_arc", "ARC-Easy")
+arc_data = dataset["train"].to_list()
+
+correct = 0
+total = len(arc_data)
+
+# Evaluate ARC accuracy
+for item in arc_data:
+    question = item["question"]
+    choices = item["choices"]
+
+    labels = item["choices"]["label"]
+    texts = item["choices"]["text"]
+    answer_key = item["answerKey"]
+    correct_answer = texts[labels.index(answer_key)]
+
+    # Tokenize input question
+    input_tokens = tokenizer.encode(question)[:block_size]  # Ensure input fits model's block size
+    input_padded = np.pad(input_tokens, (0, block_size - len(input_tokens)), mode='constant')
+
+    # Get model prediction
+    logits = model.predict(np.array([input_padded]), verbose=0)
+    predicted_token = np.argmax(logits[0, -1])  # Get the highest probability token
+    predicted_answer = tokenizer.decode([predicted_token])  # Convert back to text
+
+    if predicted_answer == correct_answer:
+        correct += 1
+
+arc_score = correct / total
+print(f"ARC Accuracy: {arc_score:.2%}")
 
 
 """
@@ -406,8 +370,8 @@ print(f"Rouge-1 F-measure: {rouge_score:.4f}")
 # === Save Model Evaluation data ===
 
 data = {
-    "model": model_id,
-    # "arc_score": arc_score,
+    "model": MODEL_ID,
+    "arc_score": arc_score,
     "hellaswag_score": hellaswag_score,
     "mmlu_score": mmlu_score,
     "tqa_score": tqa_score,
@@ -419,8 +383,4 @@ data = {
     "rouge_score": rouge_score
 }
 
-metadata_pathname = f"{model_pathname}/{MODEL_EVAL_DATA_FILENAME}"
-with open(metadata_pathname, 'w') as f:
-    json.dump(data, f, indent=2)
-
-print(f"\nThe model evaluation data has been saved to {metadata_pathname}")
+LlmModelEntity.save_evaluation(MODEL_ID, data)

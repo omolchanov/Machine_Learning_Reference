@@ -30,3 +30,8 @@ EPOCHS = 1
 
 # === Chat config
 ANSWER_LENGTH = 20
+
+# === Evaluation config
+MODEL_EVAL_DATA_FILENAME = 'model_evaluation.json'
+N_QUESTIONS = 100
+

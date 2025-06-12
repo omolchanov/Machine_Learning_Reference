@@ -35,3 +35,10 @@ class LlmTokenizer:
         with open(TOK_PATHNAME, 'rb') as f:
             return pickle.load(f)
 
+    @staticmethod
+    def load_obj():
+        with open(TOK_OBJ_PATHNAME, 'rb') as f:
+            return pickle.load(f)
+
+
+

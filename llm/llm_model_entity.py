@@ -30,7 +30,21 @@ class LlmModelEntity:
             print(f"The model metadata has been saved to {metadata_pathname}")
 
     @staticmethod
+    def save_evaluation(model_id, data):
+        """
+        Saves model's evaluation data to JSON
+        """
+        metadata_pathname = f"{MODELS_DIRECTORY_PATH}/{model_id}/{MODEL_EVAL_DATA_FILENAME}"
+        with open(metadata_pathname, 'w') as f:
+            json.dump(data, f, indent=2)
+
+        print(f"\nThe model evaluation data has been saved to {metadata_pathname}")
+
+    @staticmethod
     def load(model_id):
+        """
+        Loads model
+        """
         model_pathname = f"{MODELS_DIRECTORY_PATH}/{model_id}"
 
         model = tf.keras.models.load_model(
@@ -53,3 +67,6 @@ class LlmModelEntity:
             print(f"The Model's metadata has been loaded\n{metadata}\n")
 
         return metadata
+
+
+
