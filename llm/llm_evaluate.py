@@ -14,7 +14,7 @@ nltk.download('punkt', quiet=True)
 from nltk.translate.bleu_score import sentence_bleu
 from rouge_score import rouge_scorer
 
-from llm_tokenizer import LlmTokenizer
+from llm_dataset import LlmTokenizer
 from llm_model import fast_label_smoothing_loss
 
 from datasets import load_dataset
@@ -24,7 +24,7 @@ from llm_model import (
     MODEL_METADATA_FILENAME
 )
 
-from llm_tokenizer import (
+from llm_dataset import (
     DATA_DIRECTORY_PATH,
     DS_FIlENAME,
     TOKENIZER_OBJ_FILENAME

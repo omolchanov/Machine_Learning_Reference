@@ -10,10 +10,10 @@ import pickle
 import tensorflow as tf
 import numpy as np
 
-from llm_tokenizer import LlmTokenizer
+from llm_dataset import LlmTokenizer
 from llm_model import fast_label_smoothing_loss
 
-from llm_tokenizer import (
+from llm_dataset import (
     DATA_DIRECTORY_PATH,
     DS_FIlENAME,
     TOKENIZER_FILENAME

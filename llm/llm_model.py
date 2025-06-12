@@ -12,7 +12,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
-from llm_tokenizer import (
+from llm_dataset import (
     DATA_DIRECTORY_PATH,
     DS_METADATA_FILENAME,
     DS_FIlENAME
