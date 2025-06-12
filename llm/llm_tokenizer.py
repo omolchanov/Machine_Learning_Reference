@@ -29,3 +29,9 @@ class LlmTokenizer:
         with open(TOK_PATHNAME, 'wb') as f:
             pickle.dump(self.tokenizer, f)
             print(f"LLM tokenizer has been saved to {TOK_PATHNAME}")
+
+    @staticmethod
+    def load_tok():
+        with open(TOK_PATHNAME, 'rb') as f:
+            return pickle.load(f)
+

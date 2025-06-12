@@ -15,4 +15,18 @@ DS_MD_PATHNAME = f"{DATA_DIRECTORY}/{DS_MD_FILENAME}"
 
 DATASET_SIZE = 10
 
+# === Model's config ===
+MODELS_DIRECTORY_PATH = 'models'
+MODEL_METADATA_FILENAME = 'model_metadata.json'
+CHECKPOINTS_DIRECTORY = 'checkpoints'
 
+# === Model's hyperparameters
+BLOCK_SIZE = 128
+BATCH_SIZE = 64
+EMBED_DIMS = 64
+NUM_HEADS = 2
+FF_DIM = 128
+EPOCHS = 1
+
+# === Chat config
+ANSWER_LENGTH = 20

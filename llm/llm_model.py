@@ -4,42 +4,24 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import absl.logging
 absl.logging.set_verbosity(absl.logging.ERROR)
 
-import random
 import json
 import time
+import random
 
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
-from llm_dataset import (
-    DATA_DIRECTORY_PATH,
-    DS_METADATA_FILENAME,
-    DS_FIlENAME
-)
-
 import numpy as np
+
+from env_config import *
 
 # Limit TensorFlow for CPU
 cpu_limit = int(os.cpu_count() * 0.8)
 tf.config.threading.set_intra_op_parallelism_threads(cpu_limit)
 tf.config.threading.set_inter_op_parallelism_threads(cpu_limit)
 
-
-MODELS_DIRECTORY_PATH = 'models'
-MODEL_METADATA_FILENAME = 'model_metadata.json'
-
-# === NN Parameters
-BLOCK_SIZE = 128
-BATCH_SIZE = 64
-EMBED_DIMS = 64
-NUM_HEADS = 2
-FF_DIM = 128
-EPOCHS = 2
-
-CHECKPOINTS_DIR = 'checkpoints'
-# os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
-CHECKPOINT_FILEPATH = os.path.join(CHECKPOINTS_DIR, 'ckpt-{epoch:02d}-{loss:.4f}.weights.h5')
+CHECKPOINT_FILEPATH = os.path.join(CHECKPOINTS_DIRECTORY, 'ckpt-{epoch:02d}.weights.h5')
 
 
 def get_optimized_dataset(
@@ -288,30 +270,11 @@ def create_causal_mask(seq_len):
     """
     Pre-compute causal attention mask for better performance
     """
-
     mask = tf.linalg.band_part(tf.ones((seq_len, seq_len), dtype=tf.float32), -1, 0)
     return tf.where(mask == 0, -1e9, 0.0)
 
 
 def create_optimized_optimizer(learning_rate=1e-4, warmup_steps=4000, total_steps=40000, use_mixed_precision=True):
-    # Warmup followed by cosine decay
-    warmup_schedule = keras.optimizers.schedules.PolynomialDecay(
-        initial_learning_rate=0.0,
-        decay_steps=warmup_steps,
-        end_learning_rate=learning_rate,
-        power=1.0
-    )
-
-    # For steps beyond warmup, use cosine decay
-    cosine_schedule = keras.optimizers.schedules.CosineDecay(
-        initial_learning_rate=learning_rate,
-        decay_steps=total_steps - warmup_steps,
-        alpha=0.1
-    )
-
-    # You'd need to implement a custom schedule that combines these
-    # Or use a simpler approach with just cosine decay
-
     optimizer = keras.optimizers.Adam(
         learning_rate=learning_rate,  # Or your custom schedule
         beta_1=0.9,
@@ -331,7 +294,6 @@ def fast_label_smoothing_loss(y_true, y_pred, smoothing=0.1):
     """
     Optimized label smoothing with reduced memory usage
     """
-
     vocab_size = tf.shape(y_pred)[-1]
     confidence = 1.0 - smoothing
     low_confidence = smoothing / tf.cast(vocab_size - 1, tf.float32)
@@ -360,12 +322,12 @@ if __name__ == '__main__':
     # === Load and Prepare Dataset ===
 
     # Load dataset
-    data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
+    data = np.load(f"{DS_PATHNAME}")
     train_dataset = get_optimized_dataset(data, block_size=BLOCK_SIZE, batch_size=BATCH_SIZE)
     print('Train dataset is ready')
 
     # Load the dataset metadata
-    with open(f"{DATA_DIRECTORY_PATH}/{DS_METADATA_FILENAME}", 'r') as f:
+    with open(f"{DS_MD_PATHNAME}", 'r') as f:
         metadata = json.load(f)
         vocab_size = metadata.get('vocab_size')
 
@@ -440,14 +402,11 @@ if __name__ == '__main__':
     print(f"Number of parameters: {n_params}")
 
     # === Save Model ===
+    from llm_model_entity import LlmModelEntity
 
-    dataset_size = metadata.get('dataset_size')
-
-    model_id = f"llm_model_{random.randint(0, 1000)}_{dataset_size}"
-    model_pathname = f"{MODELS_DIRECTORY_PATH}/{model_id}"
-    model.save(model_pathname)
-
-    print(f"\nThe model has been saved to {model_pathname}")
+    ds_size = metadata.get('dataset_size')
+    model_id = f"llm_model_{random.randint(0, 1000)}_{ds_size}"
+    LlmModelEntity.save(model, model_id)
 
     # === Save Model Metadata ===
 
@@ -455,12 +414,7 @@ if __name__ == '__main__':
         'block_size': BLOCK_SIZE,
         'loss': loss,
         'training_duration': training_duration,
-        'dataset_size': dataset_size,
+        'dataset_size': ds_size,
         'n_parameters': n_params
     }
-
-    metadata_pathname = f"{model_pathname}/{MODEL_METADATA_FILENAME}"
-    with open(metadata_pathname, 'w') as f:
-        json.dump(metadata, f, indent=2)
-
-    print(f"The model metadata has been saved to {metadata_pathname}")
+    LlmModelEntity.save_metadata(metadata, model_id)

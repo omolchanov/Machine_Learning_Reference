@@ -37,6 +37,10 @@ class LlmDataset:
         self._save_ds()
         self._save_metadata()
 
+    @staticmethod
+    def load_ds():
+        return np.load(DS_PATHNAME)
+
     def _save_ds(self):
         """
         Saves the dataset to file
