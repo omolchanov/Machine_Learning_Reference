@@ -15,6 +15,7 @@ from nltk.translate.bleu_score import sentence_bleu
 from rouge_score import rouge_scorer
 
 from llm_tokenizer import LlmTokenizer
+from llm_model import fast_label_smoothing_loss
 
 from datasets import load_dataset
 
@@ -31,6 +32,7 @@ from llm_tokenizer import (
 
 
 MODEL_EVAL_DATA_FILENAME = 'model_evaluation.json'
+N_QUESTIONS = 100
 
 
 # Load tokenizer obkect
@@ -42,10 +44,15 @@ with open(f"{DATA_DIRECTORY_PATH}/{TOKENIZER_OBJ_FILENAME}", 'rb') as f:
 data = np.load(f"{DATA_DIRECTORY_PATH}/{DS_FIlENAME}")
 
 # Load the model
-model_id = 'llm_model_690_100000'
+model_id = 'llm_model_114_3000'
 model_pathname = f"{MODELS_DIRECTORY_PATH}/{model_id}"
 
-model = tf.keras.models.load_model(model_pathname)
+model = tf.keras.models.load_model(
+    model_pathname,
+    custom_objects={
+        'fast_label_smoothing_loss': fast_label_smoothing_loss
+    })
+
 print(f"Model {model_id} has been loaded")
 
 # Load the model's metadata
@@ -74,7 +81,7 @@ providing accurate, trustworthy information:
 - Medium (~40-60%)	Model sometimes truthful but inconsistent.
 - High (>60%)	Model reliably provides truthful answers.
 """
-dataset = load_dataset("truthful_qa", "multiple_choice", split="validation[:1000]")
+dataset = load_dataset("truthful_qa", "multiple_choice", split=f'validation[:{N_QUESTIONS}]')
 
 correct = 0
 total = len(dataset)
@@ -121,7 +128,7 @@ Metric: Simple accuracy — percentage of correctly answered questions.
 - Above 70%: Excellent — approaching expert-level or human performance on many subjects.
 - Above 80–90%: State-of-the-art / near-human performance.
 """
-dataset = load_dataset("openai/MMMLU", split="test[:1000]")
+dataset = load_dataset("openai/MMMLU", split=f'test[:{N_QUESTIONS}]')
 
 correct = 0
 total = len(dataset)
@@ -163,7 +170,7 @@ true (most plausible) ending out of the four options. Accuracy ranges from 0% (a
 - Low accuracy (~<40%) indicates your model struggles with understanding context or reasoning beyond surface patterns.
 - HellaSwag is intentionally challenging; human accuracy is usually around 90-95%.
 """
-dataset = load_dataset("hellaswag", split="validation[:1000]", trust_remote_code=True)
+dataset = load_dataset("hellaswag", split=f'validation[:{N_QUESTIONS}]', trust_remote_code=True)
 
 correct = 0
 total = len(dataset)
@@ -209,36 +216,36 @@ How to Interpret ARC Accuracy:
 - 60–70%	Strong reasoning — good for open-domain models.
 - 80%+	Very high performance, likely with fine-tuned LLMs.
 """
-dataset = load_dataset("allenai/ai2_arc", "ARC-Easy")
-arc_data = dataset["train"].to_list()
-
-correct = 0
-total = len(arc_data)
-
-# Evaluate ARC accuracy
-for item in arc_data:
-    question = item["question"]
-    choices = item["choices"]
-
-    labels = item["choices"]["label"]
-    texts = item["choices"]["text"]
-    answer_key = item["answerKey"]
-    correct_answer = texts[labels.index(answer_key)]
-
-    # Tokenize input question
-    input_tokens = tokenizer.encode(question)[:block_size]  # Ensure input fits model's block size
-    input_padded = np.pad(input_tokens, (0, block_size - len(input_tokens)), mode='constant')
-
-    # Get model prediction
-    logits = model.predict(np.array([input_padded]), verbose=0)
-    predicted_token = np.argmax(logits[0, -1])  # Get the highest probability token
-    predicted_answer = tokenizer.decode([predicted_token])  # Convert back to text
-
-    if predicted_answer == correct_answer:
-        correct += 1
-
-arc_score = correct / total
-print(f"ARC Accuracy: {arc_score:.2%}")
+# dataset = load_dataset("allenai/ai2_arc", "ARC-Easy")
+# arc_data = dataset["train"].to_list()
+#
+# correct = 0
+# total = len(arc_data)
+#
+# # Evaluate ARC accuracy
+# for item in arc_data:
+#     question = item["question"]
+#     choices = item["choices"]
+#
+#     labels = item["choices"]["label"]
+#     texts = item["choices"]["text"]
+#     answer_key = item["answerKey"]
+#     correct_answer = texts[labels.index(answer_key)]
+#
+#     # Tokenize input question
+#     input_tokens = tokenizer.encode(question)[:block_size]  # Ensure input fits model's block size
+#     input_padded = np.pad(input_tokens, (0, block_size - len(input_tokens)), mode='constant')
+#
+#     # Get model prediction
+#     logits = model.predict(np.array([input_padded]), verbose=0)
+#     predicted_token = np.argmax(logits[0, -1])  # Get the highest probability token
+#     predicted_answer = tokenizer.decode([predicted_token])  # Convert back to text
+#
+#     if predicted_answer == correct_answer:
+#         correct += 1
+#
+# arc_score = correct / total
+# print(f"ARC Accuracy: {arc_score:.2%}")
 
 
 """
@@ -298,7 +305,7 @@ start_time = time.time()
 generated_tokens = generate_text(model, list(seed_tokens), max_length=20)
 
 gen_latency = time.time() - start_time
-print(f"Generation latency: , {gen_latency:.3f}")
+print(f"Generation latency: {gen_latency:.3f}")
 
 
 """
@@ -400,7 +407,7 @@ print(f"Rouge-1 F-measure: {rouge_score:.4f}")
 
 data = {
     "model": model_id,
-    "arc_score": arc_score,
+    # "arc_score": arc_score,
     "hellaswag_score": hellaswag_score,
     "mmlu_score": mmlu_score,
     "tqa_score": tqa_score,
