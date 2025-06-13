@@ -12,8 +12,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
-import numpy as np
-
+from llm_dataset import LlmDataset
 from env_config import *
 
 # Limit TensorFlow for CPU
@@ -322,7 +321,7 @@ if __name__ == '__main__':
     # === Load and Prepare Dataset ===
 
     # Load dataset
-    data = np.load(f"{DS_PATHNAME}")
+    data = LlmDataset.load_ds()
     train_dataset = get_optimized_dataset(data, block_size=BLOCK_SIZE, batch_size=BATCH_SIZE)
     print('Train dataset is ready')
 
@@ -353,6 +352,8 @@ if __name__ == '__main__':
     )
 
     # Compile with optimizations
+    start_time = time.time()
+
     model.compile(
         loss=fast_label_smoothing_loss,
         optimizer=optimizer,
@@ -382,7 +383,7 @@ if __name__ == '__main__':
         ),
     ]
 
-    start_time = time.time()
+
     history = model.fit(
         train_dataset,
         epochs=EPOCHS,

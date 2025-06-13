@@ -1,15 +1,11 @@
 """
-To estimate the number of learning cycles and training time per epoch, we need to calculate the total iterations
-required per epoch and approximate the duration based on empirical benchmarks.
-
-Calculation Overview
-    1. Steps Per Epoch = DATASET_SIZE / BATCH_SIZE
-    2. Total Training Steps = Steps Per Epoch * EPOCHS
-    3. Estimated Time Per Step (depends on hardware, but we can assume an approximate value)
-    4. Total Estimated Training Time = Time Per Step * Total Training Steps
+Compact Transformer Training Time Calculator
+Simple estimation for your optimized transformer model
 """
 
 import numpy as np
+from llm_dataset import LlmDataset
+
 
 # Hyperparameters
 BLOCK_SIZE = 128
@@ -17,34 +13,57 @@ BATCH_SIZE = 64
 EMBED_DIMS = 64
 NUM_HEADS = 2
 FF_DIM = 128
-EPOCHS = 5
+EPOCHS = 1
+
+
+def get_vocab_size(data):
+    """Load vocab size from metadata, fallback to estimation"""
+    return len(np.unique(data))
+
+
+def estimate_training_time(vocab_size, dataset_size, optimized=True):
+    """Simple time estimation based on model size and optimizations"""
+
+    # Base time per step (seconds) - calibrated from real results
+    base_time = 0.8  # Adjusted based on 65s real vs 228s predicted
+
+    # Adjust for model complexity
+    vocab_factor = max(1.0, (vocab_size / 10000) ** 0.5)  # Square root scaling
+    embed_factor = (EMBED_DIMS * FF_DIM) / (64 * 128)
+
+    complexity_factor = vocab_factor * embed_factor
+    base_time *= complexity_factor
+
+    # Apply optimization speedups if using optimized model
+    if optimized:
+        base_time /= 2  # Minimal speedup factor
+
+    # Calculate steps and total time
+    steps_per_epoch = (dataset_size - BLOCK_SIZE) // BATCH_SIZE
+    total_steps = steps_per_epoch * EPOCHS
+    total_time = total_steps * base_time
+
+    # Minimal overhead
+    total_time *= 1.1
+
+    return total_time, steps_per_epoch, total_steps
+
 
 if __name__ == '__main__':
+    data = LlmDataset.load_ds()
+    vocab_size = get_vocab_size(data)
 
-    # Load the dataset and get its size
-    encoded_data = np.load("data/dataset.npy")
-    tokenized_length = len(encoded_data)
-    print(f"Tokens number: {tokenized_length}")
+    print(f"Dataset size: {len(data):,} tokens")
+    print(f"Vocab size: {vocab_size:,}")
 
-    # Compute steps per epoch
-    num_samples = tokenized_length - BLOCK_SIZE
-    steps_per_epoch = num_samples // BATCH_SIZE
-    total_training_steps = steps_per_epoch * EPOCHS
+    # Calculate training time
+    total_time, steps_per_epoch, total_steps = estimate_training_time(
+        vocab_size, len(data), optimized=True
+    )
 
-
-    def adjust_time_per_step(initial_time, epochs):
-        decay_factor = 0.75  # Example: 55% speedup per epoch
-        times = [initial_time * (decay_factor ** epoch) for epoch in range(epochs)]
-        return sum(times) / epochs  # Average time per step across epochs
-
-
-    initial_time_per_step = 0.15
-    adjusted_time_per_step = adjust_time_per_step(initial_time_per_step, EPOCHS)
-    total_training_time = total_training_steps * adjusted_time_per_step
-
-    print(f"Steps per epoch: {steps_per_epoch}")
-    print(f"Total training steps: {total_training_steps}")
-    print(f"Approximate training time: "
-          f"{total_training_time:.0f} seconds | "
-          f"{total_training_time / 60:.1f} minutes | "
-          f"{total_training_time/ 3600:.1f} hours")
+    print(f"\nSteps per epoch: {steps_per_epoch:,}")
+    print(f"Total steps: {total_steps:,}")
+    print(f"\nEstimated training time:")
+    print(f"  {total_time:.0f} seconds")
+    print(f"  {total_time / 60:.1f} minutes")
+    print(f"  {total_time / 3600:.2f} hours")
