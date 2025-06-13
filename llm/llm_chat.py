@@ -11,7 +11,7 @@ from llm_dataset import LlmDataset
 from llm_model_entity import LlmModelEntity
 from env_config import *
 
-MODEL_ID = 'llm_model_722_30'
+MODEL_ID = 'llm_model_546_30'
 
 
 class LlmChat:

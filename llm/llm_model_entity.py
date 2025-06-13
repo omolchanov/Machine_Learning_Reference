@@ -38,7 +38,7 @@ class LlmModelEntity:
         with open(metadata_pathname, 'w') as f:
             json.dump(data, f, indent=2)
 
-        print(f"\nThe model evaluation data has been saved to {metadata_pathname}")
+        print(f"\nThe model evaluation data {data} has been saved to {metadata_pathname}")
 
     @staticmethod
     def load(model_id):
@@ -67,6 +67,3 @@ class LlmModelEntity:
             print(f"The Model's metadata has been loaded\n{metadata}\n")
 
         return metadata
-
-
-
