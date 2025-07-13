@@ -70,7 +70,7 @@ def create_vector_index():
                 }
             """)
         except Exception as e:
-            print("⚠️ Index may already exist or error:", e)
+            print("Index may already exist or error:", e)
 
 
 # --- Semantic search ---
