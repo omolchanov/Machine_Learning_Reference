@@ -173,7 +173,8 @@ def get_running_total_events_by_hour():
     query = """
         SELECT
             hour,
-            sum(event_count) OVER (ORDER BY hour ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total_events
+            sum(event_count) OVER (ORDER BY hour ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS 
+            running_total_events
         FROM (
             SELECT toStartOfHour(event_time) AS hour, count(*) AS event_count
             FROM web_events
