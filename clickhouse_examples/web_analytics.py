@@ -3,6 +3,8 @@ import random
 import datetime
 import time
 from functools import wraps
+import tracemalloc
+import pprint
 
 from clickhouse_connect import get_client
 
@@ -18,15 +20,25 @@ client = get_client(
 print(client.ping())
 
 
-def timeit(func):
+def profile_performance(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        start = time.perf_counter()
+        # Start measuring time and memory
+        tracemalloc.start()
+        start_time = time.perf_counter()
+
         result = func(*args, **kwargs)
-        end = time.perf_counter()
-        duration = end - start
-        print(f"\nFunction '{func.__name__}' executed in {duration:.4f} seconds")
+
+        end_time = time.perf_counter()
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        # Report
+        print(f"\n[{func.__name__}] Time: {(end_time - start_time):.4f}s")
+        print(f"[{func.__name__}] Memory: Current={current / 1024 / 1024:.3f} MB, Peak={peak / 1024 / 1024:.1f} MB")
+
         return result
+
     return wrapper
 
 
@@ -76,17 +88,17 @@ def ingest_data():
         print(f"Inserted rows {offset + 1} to {offset + batch_size}")
 
 
-@timeit
+@profile_performance
 def total_events():
     return client.query('SELECT COUNT(*) FROM web_events').result_rows[0][0]
 
 
-@timeit
+@profile_performance
 def unique_users():
     return client.query('SELECT COUNT(DISTINCT user_id) FROM web_events').result_rows[0][0]
 
 
-@timeit
+@profile_performance
 def events_per_page():
     result = client.query('''
         SELECT page, COUNT(*) AS event_count
@@ -97,7 +109,7 @@ def events_per_page():
     return result.result_rows
 
 
-@timeit
+@profile_performance
 def average_events_per_user():
     result = client.query('''
         SELECT AVG(events)
@@ -110,17 +122,17 @@ def average_events_per_user():
     return result.result_rows[0][0]
 
 
-@timeit
+@profile_performance
 def first_event_time():
     return client.query('SELECT MIN(event_time) FROM web_events').result_rows[0][0]
 
 
-@timeit
+@profile_performance
 def last_event_time():
     return client.query('SELECT MAX(event_time) FROM web_events').result_rows[0][0]
 
 
-@timeit
+@profile_performance
 def top_active_users(limit=5):
     query = f'''
         SELECT user_id, COUNT(*) AS event_count
@@ -131,6 +143,97 @@ def top_active_users(limit=5):
     '''
     result = client.query(query)
     return result.result_rows
+
+
+@profile_performance
+def get_unique_users_per_day():
+    query = """
+        SELECT
+            toStartOfHour(event_time) AS hour,
+            uniqExact(user_id) AS exact_unique_users,
+            uniqCombined(user_id) AS approx_unique_users
+        FROM web_events
+        GROUP BY hour
+        ORDER BY hour
+    """
+    result = client.query(query)
+
+    return [
+        {
+            'hour': row[0].strftime("%H") if hasattr(row[0], "strftime") else str(row[0]),
+            'exact_unique_users': row[1],
+            'approx_unique_users': row[2],
+        }
+        for row in result.result_rows
+    ]
+
+
+@profile_performance
+def get_running_total_events_by_hour():
+    query = """
+        SELECT
+            hour,
+            sum(event_count) OVER (ORDER BY hour ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total_events
+        FROM (
+            SELECT toStartOfHour(event_time) AS hour, count(*) AS event_count
+            FROM web_events
+            GROUP BY hour
+        )
+        ORDER BY hour
+    """
+    result = client.query(query)
+
+    return [
+        {
+            'hour': row[0].strftime("%H") if hasattr(row[0], "strftime") else str(row[0]),
+            'running_total_events': row[1],
+        }
+        for row in result.result_rows
+    ]
+
+
+@profile_performance
+def get_session_length_distribution():
+    query = """
+        SELECT
+            quantile(0.5)(session_length) AS median_session_length,
+            quantile(0.9)(session_length) AS p90_session_length,
+            quantile(0.99)(session_length) AS p99_session_length
+        FROM (
+            SELECT
+                session_id,
+                max(toDateTime(event_time)) - min(toDateTime(event_time)) AS session_length
+            FROM web_events
+            GROUP BY session_id
+        )
+    """
+    result = client.query(query)
+    row = result.result_rows[0]
+    return {
+        'median_session_length': row[0],
+        'p90_session_length': row[1],
+        'p99_session_length': row[2],
+    }
+
+
+@profile_performance
+def get_top_pages_last_2_hours():
+    query = """
+        SELECT
+            page,
+            count(*) AS events
+        FROM web_events
+        WHERE toDateTime(event_time) >= now() - INTERVAL 2 HOUR
+          AND is_logged_in = 1
+        GROUP BY page
+        ORDER BY events DESC
+        LIMIT 5
+    """
+    result = client.query(query)
+    return [
+        {'page': row[0], 'events': row[1]}
+        for row in result.result_rows
+    ]
 
 
 if __name__ == '__main__':
@@ -146,3 +249,12 @@ if __name__ == '__main__':
     print("First Event Time:", first_event_time())
     print("Last Event Time:", last_event_time())
     print("Top Active Users:", top_active_users())
+
+    print("\nUnique users per hour:")
+    pprint.pprint(get_unique_users_per_day())
+
+    print("\nTotal events by hour:")
+    pprint.pp(get_running_total_events_by_hour())
+
+    print(get_session_length_distribution())
+    print(get_top_pages_last_2_hours())
