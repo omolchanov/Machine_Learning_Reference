@@ -1,3 +1,11 @@
+"""
+Sales Trend Analysis
+
+Dataset: Sales records with timestamps
+Goal: Analyze monthly/weekly trends, seasonal patterns
+Tools: SQL GROUP BY, time-based windowing, line plots
+"""
+
 import duckdb
 import pandas as pd
 import numpy as np
@@ -76,3 +84,5 @@ if __name__ == '__main__':
     # Plot weekly sales with trend
     plot_with_trend(weekly_sales['year_week'], weekly_sales['total_sales'],
                     'Weekly Sales Trend with Linear Trend Line', 'Year-Week')
+
+    con.close()
