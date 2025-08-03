@@ -1,7 +1,10 @@
 """
 Here's a simple ELT (Extract, Load, Transform) example using MySQL. In ELT, we:
+
 Extract data from a source (e.g., a CSV or another DB).
+
 Load raw data into a staging table in MySQL.
+
 Transform the data using SQL within MySQL
 """
 
