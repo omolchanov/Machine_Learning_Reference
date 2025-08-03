@@ -50,10 +50,7 @@ def sales_mlops_pipeline():
 
     @task()
     def train_model(processed_data):
-        coef = sum(processed_data) / len(processed_data)
-        params = {"learning_rate": 0.1}  # Example hyperparameter
-        score = coef  # Dummy metric
-        return {"coef": coef, "params": params, "score": score}
+        func_train_model(processed_data)
 
     @task(
         doc_md="Goal: Track model experiments and artifacts. "
@@ -118,8 +115,8 @@ def sales_mlops_pipeline():
     # DAG execution flow
     data = extract_data()
     validate_data(data)
-    processed = preprocess_data(data)
-    # model = train_model(processed)
+    processed_data = preprocess_data(data)
+    train_model(processed_data)
     # track_experiment(model)
     # evaluate_model(model)
     # package_model(model)
