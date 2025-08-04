@@ -52,14 +52,9 @@ def sales_mlops_pipeline():
     def train_model(processed_data):
         func_train_model(processed_data)
 
-    @task(
-        doc_md="Goal: Track model experiments and artifacts. "
-               "Activities: Log model parameters, metrics, artifacts using tools like MLflow or Weights & Biases."
-    )
-    def track_experiment(model):
-        print("Tracking experiment...")
-        logging.info(
-            f"Logging experiment: coef={model['coef']:.2f}, params={model['params']}, score={model['score']:.2f}")
+    @task()
+    def track_experiment(data):
+        func_conduct_experiment(data)
 
     @task(
         trigger_rule=TriggerRule.ALL_SUCCESS,
@@ -117,7 +112,7 @@ def sales_mlops_pipeline():
     validate_data(data)
     processed_data = preprocess_data(data)
     train_model(processed_data)
-    # track_experiment(model)
+    track_experiment(processed_data)
     # evaluate_model(model)
     # package_model(model)
     # deploy_model(model)
