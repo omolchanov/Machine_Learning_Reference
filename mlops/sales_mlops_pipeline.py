@@ -56,19 +56,21 @@ def sales_mlops_pipeline():
     def track_experiment(data):
         func_conduct_experiment(data)
 
-    @task(
-        trigger_rule=TriggerRule.ALL_SUCCESS,
-        doc_md="Goal: Ensure model meets quality standards."
-               "Activities: Cross-validation, hold-out testing."
-               "Performance vs baseline, fairness testing."
-    )
-    def evaluate_model(model):
-        print("Evaluating model...")
-        accuracy = model["coef"]
-        print(f"Model accuracy: {accuracy:.2f}")
-        if accuracy < 0.5:
-            raise ValueError("Model accuracy below threshold!")
-        return accuracy
+    @task(trigger_rule=TriggerRule.ALL_SUCCESS,)
+    def evaluate_model(data):
+        scores = func_evaluate_model(data)
+        mean_score, roc_auc_score = scores
+
+        mean_score_thr = 0.5
+        roc_auc_score_thr = 0.2
+
+        if mean_score < mean_score_thr or roc_auc_score < roc_auc_score_thr:
+            raise ValueError(f""
+                             f"Model evalution failed and it can not be used in PROD "
+                             f"with acc_score {mean_score:.3f} and roc_auc {roc_auc_score:.3f}")
+
+        logging.info(f"The model was evaluated successfuly and can be used in PROD "
+                     f"with acc_score {mean_score:.3f} and roc_auc {roc_auc_score:.3f}")
 
     @task(
         trigger_rule=TriggerRule.ALL_SUCCESS,
@@ -111,9 +113,9 @@ def sales_mlops_pipeline():
     data = extract_data()
     validate_data(data)
     processed_data = preprocess_data(data)
-    train_model(processed_data)
-    track_experiment(processed_data)
-    # evaluate_model(model)
+
+    train_model(processed_data) >> track_experiment(processed_data) >> evaluate_model(processed_data)
+
     # package_model(model)
     # deploy_model(model)
     # monitor_and_log(model)

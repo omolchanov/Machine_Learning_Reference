@@ -6,16 +6,16 @@ from datetime import datetime
 import duckdb
 import pandas as pd
 
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, StratifiedKFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_auc_score
 
 import logging
 logging.basicConfig(level=logging.INFO)
 
 import warnings
-warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore")
 
 # Local
 # DF_PATH = "data/stagins_sales_df.csv"
@@ -92,7 +92,6 @@ def func_train_model(data):
             best_model = model
             best_model_name = name
 
-
     # Save the best model
     with open(MODEL_PATH, "wb") as f:
         pickle.dump(best_model, f)
@@ -156,8 +155,46 @@ def func_conduct_experiment(data):
     logging.info(f"Saved the experiment data to {EXPERIMENT_FILE_PATH}")
 
 
+def func_evaluate_model(data):
+    df = data
+
+    X = df[["amount", "new_customer"]]
+    y = df["churn"]
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Load the best model from .pkl
+    with open(MODEL_PATH, "rb") as f:
+        model = pickle.load(f)
+
+    # Load the best model's metadata
+    with open(MODEL_DATA_PATH, "r") as f:
+        data = json.load(f)
+
+    # Cross-Validation
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv_scores = cross_val_score(model, X_train, y_train, cv=cv, scoring='accuracy')
+
+    mean_acc_score = cv_scores.mean()
+
+    logging.info(f"CV score: {mean_acc_score:.3f}")
+
+    # Holdout Evaluation
+    y_pred = model.predict(X_test)
+    y_proba = model.predict_proba(X_test)[:, 1]
+    roc_auc = roc_auc_score(y_test, y_proba)
+
+    logging.info(classification_report(y_test, y_pred))
+    logging.info(confusion_matrix(y_test, y_pred))
+    logging.info(f"ROC-AUC: {roc_auc:.3f}")
+
+    return mean_acc_score, roc_auc
+
+
 # data = func_extract_data()
 # data = func_preprocess_data(data)
 #
 # func_train_model(data)
-# func_conduct_experiment(data)
+#
+# # func_conduct_experiment(data)
+# func_evaluate_model(data)
