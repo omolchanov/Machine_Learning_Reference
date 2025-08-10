@@ -7,6 +7,9 @@ import random
 import logging
 import pickle
 import os
+import joblib
+import base64
+import io
 
 # Functions
 from funcs import *
@@ -50,15 +53,27 @@ def sales_mlops_pipeline():
 
     @task()
     def train_model(processed_data):
-        func_train_model(processed_data)
+        model = func_train_model(processed_data)
+
+        buffer = io.BytesIO()
+        joblib.dump(model, buffer)
+        return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
     @task()
-    def track_experiment(data):
-        func_conduct_experiment(data)
+    def conduct_experiment(data, model):
+        model_bytes = base64.b64decode(model)
+        buffer = io.BytesIO(model_bytes)
+        model = joblib.load(buffer)
+
+        func_conduct_experiment(data, model)
 
     @task(trigger_rule=TriggerRule.ALL_SUCCESS,)
-    def evaluate_model(data):
-        scores = func_evaluate_model(data)
+    def evaluate_model(data, model):
+        model_bytes = base64.b64decode(model)
+        buffer = io.BytesIO(model_bytes)
+        model = joblib.load(buffer)
+
+        scores = func_evaluate_model(data, model)
         mean_score, roc_auc_score = scores
 
         mean_score_thr = 0.5
@@ -72,53 +87,29 @@ def sales_mlops_pipeline():
         logging.info(f"The model was evaluated successfuly and can be used in PROD "
                      f"with acc_score {mean_score:.3f} and roc_auc {roc_auc_score:.3f}")
 
-    @task(
-        trigger_rule=TriggerRule.ALL_SUCCESS,
-        doc_md="Goal: Prepare model for deployment in a reproducible way. "
-               "Activities: Serialize to .pkl, .onnx, .joblib, etc. "
-               "Create Python/REST/GRPC interface for use."
-    )
+    @task(trigger_rule=TriggerRule.ALL_SUCCESS)
     def package_model(model):
-        print("Packaging model...")
+        model_bytes = base64.b64decode(model)
+        buffer = io.BytesIO(model_bytes)
+        model = joblib.load(buffer)
 
-        # Simulate saving a model file
-        with open("/tmp/model.pkl", "wb") as f:
-            pickle.dump(model, f)
-        print("Model saved to model.pkl")
+        func_package_model(model)
 
-        return "model.pkl"
-
-    @task(
-        trigger_rule=TriggerRule.ALL_SUCCESS,
-        doc_md=""
-               "Goal: Serve model in production for inference. "
-               "Activities: Deploy to REST API, batch jobs, or streaming. "
-               "Monitor performance and resource use."
-    )
-    def deploy_model(model):
-        print(f"Deploying model with coef = {model['coef']:.2f}...")
-
-    @task(
-        trigger_rule=TriggerRule.ALL_SUCCESS,
-        doc_md="Goal: Detect drift, degradation, or failures in production. "
-               "Activities: Track inputs, outputs, latency, errors. "
-               "Detect data drift or model decay."
-    )
-    def monitor_and_log(model):
-        print("Monitoring model performance in production...")
-        # Simulated monitoring logs
-        print("No drift detected. Latency normal. Error rate < 1%.")
+    @task(trigger_rule=TriggerRule.ALL_SUCCESS)
+    def deploy_model():
+        func_deploy_model()
 
     # DAG execution flow
     data = extract_data()
     validate_data(data)
-    processed_data = preprocess_data(data)
 
-    train_model(processed_data) >> track_experiment(processed_data) >> evaluate_model(processed_data)
+    data = preprocess_data(data)
+    model = train_model(data)
 
-    # package_model(model)
-    # deploy_model(model)
-    # monitor_and_log(model)
+    (conduct_experiment(data, model)
+     >> evaluate_model(data, model)
+     >> package_model(model)
+     >> deploy_model())
 
 
 sales_mlops_pipeline()

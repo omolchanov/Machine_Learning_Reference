@@ -2,6 +2,9 @@ import pickle
 import json
 import csv
 from datetime import datetime
+import re
+import shutil
+from pathlib import Path
 
 import duckdb
 import pandas as pd
@@ -19,14 +22,12 @@ warnings.filterwarnings("ignore")
 
 # Local
 # DF_PATH = "data/stagins_sales_df.csv"
-# MODEL_PATH = "models/clf.pkl"
-# MODEL_DATA_PATH = "models/data.json"
+# MODEL_PATH = "models/"
 # EXPERIMENT_FILE_PATH = "models/exp.csv"
 
 # Airflow
 DF_PATH = "/opt/airflow/dags/data/stagins_sales_df.csv"
-MODEL_PATH = "/opt/airflow/dags/models/clf.pkl"
-MODEL_DATA_PATH = "/opt/airflow/dags/models/data.json"
+MODEL_PATH = "/opt/airflow/dags/models/"
 EXPERIMENT_FILE_PATH = "/opt/airflow/dags/models/exp.csv"
 
 
@@ -92,24 +93,11 @@ def func_train_model(data):
             best_model = model
             best_model_name = name
 
-    # Save the best model
-    with open(MODEL_PATH, "wb") as f:
-        pickle.dump(best_model, f)
-
-    # Save the model metadata
-    data = {
-        "accuracy": best_score,
-        "type": best_model_name
-    }
-
-    with open(MODEL_DATA_PATH, "w") as f:
-        json.dump(data, f)
-
     logging.info(f"Best model: {best_model_name} with accuracy {best_score:.3f}")
-    logging.info(f"The model and model's data are saved to {MODEL_PATH}, {MODEL_DATA_PATH}")
+    return best_model
 
 
-def func_conduct_experiment(data):
+def func_conduct_experiment(data, model):
     df = data
 
     X = df[["amount", "new_customer"]]
@@ -117,17 +105,9 @@ def func_conduct_experiment(data):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # Load the best model from .pkl
-    with open(MODEL_PATH, "rb") as f:
-        model = pickle.load(f)
-
-    # Load the best model's metadata
-    with open(MODEL_DATA_PATH, "r") as f:
-        data = json.load(f)
-
     param_grid = None
 
-    if data["type"] == "Logistic Regression":
+    if isinstance(model, LogisticRegression):
         param_grid = {
             "C": [0.01, 0.1, 1, 10, 100, 10000],
             "solver": ["saga", "liblinear"],
@@ -135,7 +115,7 @@ def func_conduct_experiment(data):
             "max_iter": [50000]
         }
 
-    logging.info(f"Starting an expirement with model {data['type']}")
+    logging.info(f"Starting an expirement with model {model}")
     grid = GridSearchCV(model, param_grid, cv=2, scoring="accuracy", verbose=2)
     grid.fit(X_train, y_train)
 
@@ -155,21 +135,13 @@ def func_conduct_experiment(data):
     logging.info(f"Saved the experiment data to {EXPERIMENT_FILE_PATH}")
 
 
-def func_evaluate_model(data):
+def func_evaluate_model(data, model):
     df = data
 
     X = df[["amount", "new_customer"]]
     y = df["churn"]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Load the best model from .pkl
-    with open(MODEL_PATH, "rb") as f:
-        model = pickle.load(f)
-
-    # Load the best model's metadata
-    with open(MODEL_DATA_PATH, "r") as f:
-        data = json.load(f)
 
     # Cross-Validation
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -191,10 +163,30 @@ def func_evaluate_model(data):
     return mean_acc_score, roc_auc
 
 
-# data = func_extract_data()
-# data = func_preprocess_data(data)
-#
-# func_train_model(data)
-#
-# # func_conduct_experiment(data)
-# func_evaluate_model(data)
+def func_package_model(model):
+
+    # Save the model for deployment
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filepath = f"{MODEL_PATH}clf_{timestamp}.pkl"
+
+    with open(filepath, "wb") as f:
+        pickle.dump(model, f)
+
+    logging.info(f"Model saved as {filepath}")
+
+
+def func_deploy_model():
+    files = [f for f in Path(MODEL_PATH).iterdir() if f.is_file()]
+
+    if not files:
+        raise ValueError(f"Model directory {MODEL_PATH} does not contain evaluated models")
+
+    latest_model = max(files, key=lambda f: f.stat().st_mtime)
+    prod_model = Path(f"{MODEL_PATH}clf_prod.pkl")
+
+    if prod_model.exists():
+        prod_model.unlink()
+
+    latest_model.rename(prod_model)
+
+    logging.info(f"Model {latest_model} is depoyed to PROD with filename {prod_model}")
