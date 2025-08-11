@@ -67,7 +67,7 @@ def sales_mlops_pipeline():
 
         func_conduct_experiment(data, model)
 
-    @task(trigger_rule=TriggerRule.ALL_SUCCESS,)
+    @task(trigger_rule=TriggerRule.ALL_SUCCESS)
     def evaluate_model(data, model):
         model_bytes = base64.b64decode(model)
         buffer = io.BytesIO(model_bytes)

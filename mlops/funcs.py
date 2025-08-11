@@ -190,3 +190,12 @@ def func_deploy_model():
     latest_model.rename(prod_model)
 
     logging.info(f"Model {latest_model} is depoyed to PROD with filename {prod_model}")
+
+
+def load_prod_model():
+    filepath = f"{MODEL_PATH}clf_prod.pkl"
+
+    with open(filepath, "rb") as f:
+        model = pickle.load(f)
+
+    return model
