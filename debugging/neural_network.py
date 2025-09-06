@@ -10,24 +10,20 @@ import numpy as np
 np.set_printoptions(threshold=np.inf)
 
 
-class PrintAllWeights(tf.keras.callbacks.Callback):
+class MeanWeightLogger(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
-        print(f"\n=== Epoch {epoch+1} Weights ===")
+        print(f"\nEpoch {epoch+1}:")
 
-        for i, layer in enumerate(self.model.layers):
-            weights = layer.get_weights()
+        for layer in self.model.layers:
+            if isinstance(layer, tf.keras.layers.Dense):
+                weights, biases = layer.get_weights()
 
-            if weights:  # only layers with weights
-                kernel, bias = weights
+                # Compute mean per neuron (axis=0 because columns = neurons)
+                mean_per_neuron = np.mean(weights, axis=0)
 
-                print("\n==================")
-
-                print(f"\nLayer {i} - {layer.name}")
-                print("Kernel (weights between neurons):")
-                print(kernel)   # full weight matrix
-
-                print("Biases (one per output neuron):")
-                print(bias)     # bias vector
+                print(f"  Layer {layer.name} ->")
+                for neuron_id, mean_w in enumerate(mean_per_neuron):
+                    print(f"    Neuron {neuron_id}: mean weight = {mean_w:.6f}")
 
 
 class WeightsToTensorBoard(tf.keras.callbacks.Callback):
@@ -79,7 +75,7 @@ model.fit(
     epochs=5,
     batch_size=32,
     validation_split=0.2,
-    callbacks=[tensorboard_callback, weights_cb, PrintAllWeights()],
+    callbacks=[tensorboard_callback, weights_cb, MeanWeightLogger()],
     verbose=2
 )
 
