@@ -67,6 +67,16 @@ def regression_example():
     # Enable interactive plots
     shap.initjs()
 
+    """
+    Structure of a force plot
+
+    Baseline (expected value):
+    - The starting point, usually the average model prediction across the training set.
+    - Arrows (forces):
+    -- Red arrows (to the right): features pushing the prediction higher than the baseline.
+    -- Blue arrows (to the left): features pushing the prediction lower.
+    -- The longer the arrow, the stronger the feature’s effect.
+    """
     # Force plot for all samples
     shap.force_plot(explainer.expected_value, shap_values.values, X)
     shap.save_html("regression.html", shap.force_plot(explainer.expected_value, shap_values.values, X))
@@ -124,5 +134,5 @@ def clustering_example():
 
 
 regression_example()
-# classification_example()
-# clustering_example()
+classification_example()
+clustering_example()
