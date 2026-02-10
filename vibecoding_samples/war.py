@@ -99,11 +99,6 @@ def inspect_df(df: pd.DataFrame, n: int = 5) -> None:
     print(df.describe(include="all"))
 
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-
-
 def plot_6month_losses(
     df: pd.DataFrame,
     columns: list[str] | None = None,
@@ -122,41 +117,82 @@ def plot_6month_losses(
         Figure size
     """
 
-    # Keep numeric columns
-    numeric = df.select_dtypes("number")
-    if columns:
-        numeric = numeric[columns]
+    if columns is None:
+        columns = ["personnel", "missiles", "uav"]
 
-        # Aggregate by 6-month periods (starting from Jan/Jul)
-    agg = numeric.resample("6MS").sum()
+        # numeric only
+    data = df.select_dtypes("number")[columns]
 
-    # Convert to long format for seaborn
-    plot_df = agg.reset_index().melt(
-        id_vars="date", var_name="metric", value_name="losses"
-    )
+    # 6-month aggregation
+    agg = data.resample("6MS").sum()
 
-    # Plot
-    plt.figure(figsize=figsize)
-    ax = sns.barplot(data=plot_df, x="date", y="losses", hue="metric")
-    plt.xticks(rotation=45)
-    plt.title("Losses aggregated by 6-month periods")
+    # create subplots (one per metric)
+    fig, axes = plt.subplots(len(columns), 1, figsize=figsize, sharex=True)
 
-    # Annotate bars with values
-    for p in ax.patches:
-        height = p.get_height()
-        if height > 0:  # avoid zero-height bars
+    if len(columns) == 1:
+        axes = [axes]
+
+    for ax, col in zip(axes, columns):
+        sns.lineplot(
+            x=agg.index,
+            y=agg[col],
+            marker="o",
+            ax=ax
+        )
+
+        ax.set_title(col.capitalize())
+        ax.set_ylabel("losses")
+
+        # annotate each point
+        for x, y in zip(agg.index, agg[col]):
             ax.annotate(
-                f"{int(height)}",
-                (p.get_x() + p.get_width() / 2., height),
-                ha='center',
-                va='bottom',
-                fontsize=9,
-                xytext=(0, 3),
-                textcoords='offset points'
+                f"{int(y):,}",  # formatted with commas
+                (x, y),
+                textcoords="offset points",
+                xytext=(0, 6),
+                ha="center",
+                fontsize=9
             )
+
+        ax.grid(True, alpha=0.3)
+
+    axes[-1].set_xlabel("Period (6 months)")
 
     plt.tight_layout()
     plt.show()
+
+
+def correlation_analysis(df: pd.DataFrame, columns: list[str] = ["personnel", "uav", "missiles"], plot: bool = False) -> pd.DataFrame:
+    """
+    Calculate and optionally plot the correlation matrix between selected features.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing the features.
+    columns : list[str]
+        List of feature names to include in the correlation analysis.
+    plot : bool
+        Whether to plot a heatmap of the correlation matrix.
+
+    Returns
+    -------
+    pd.DataFrame
+        Correlation matrix between the selected features.
+    """
+    # Select only the specified columns and drop rows with missing values
+    data = df[columns].dropna()
+    corr_matrix = data.corr()
+
+    if plot:
+        plt.figure(figsize=(6, 4))
+        sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
+        plt.title("Correlation Matrix")
+        plt.tight_layout()
+        plt.show()
+
+    return corr_matrix
+
 
 def main() -> None:
     payload = fetch_daily_losses()
@@ -165,7 +201,11 @@ def main() -> None:
     # inspect_df(df)
     plot_6month_losses(df, ['personnel', 'uav', 'missiles'])
 
+    # Correlation analysis demonstration
+    corr = correlation_analysis(df)
+    print("\nCorrelation matrix between personnel, uav, and missiles:")
+    print(corr)
+
 
 if __name__ == "__main__":
     main()
-
