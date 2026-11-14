@@ -5,3 +5,6 @@
 /llm/models
 /llm/data
 /llm/checkpoints/
+/dbt_sample/target/
+/dbt_sample/logs/
+/dbt_sample/.user.yml

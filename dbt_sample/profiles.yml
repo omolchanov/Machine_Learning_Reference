@@ -1,0 +1,10 @@
+dbt_sample:
+  target: dev
+  outputs:
+    dev:
+      type: mysql
+      server: 127.0.0.1
+      port: 3307
+      schema: dbt_sample
+      username: ml_ref_dev
+      password: ml_ref_dev_pass
