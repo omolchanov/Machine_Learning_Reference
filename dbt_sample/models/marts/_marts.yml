@@ -3,6 +3,17 @@ version: 2
 models:
   - name: customer_orders
     description: Customer-level order counts and total spend (full table refresh).
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: order_count
+        tests:
+          - not_null
+      - name: total_spent
+        tests:
+          - not_null
   - name: fct_orders
     description: >
       Order-line fact table. Uses incremental materialization: first run loads all

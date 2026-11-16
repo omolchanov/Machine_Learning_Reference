@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: stg_customers
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: email
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_orders
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['completed', 'shipped', 'returned', 'processing']
+      - name: quantity
+        tests:
+          - not_null
+      - name: line_total
+        tests:
+          - not_null
