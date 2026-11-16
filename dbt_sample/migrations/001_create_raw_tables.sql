@@ -39,10 +39,12 @@ CREATE TABLE orders (
     unit_price    DECIMAL(10, 2) NOT NULL,
     order_date    DATE           NOT NULL,
     status        VARCHAR(32)    NOT NULL,
+    updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
     KEY idx_orders_customer_id (customer_id),
     KEY idx_orders_product_id (product_id),
     KEY idx_orders_order_date (order_date),
+    KEY idx_orders_updated_at (updated_at),
     CONSTRAINT fk_orders_customer
         FOREIGN KEY (customer_id) REFERENCES customers (customer_id),
     CONSTRAINT fk_orders_product

@@ -16,3 +16,5 @@ models:
       +materialized: view
     marts:
       +materialized: table
+      fct_orders:
+        +materialized: incremental

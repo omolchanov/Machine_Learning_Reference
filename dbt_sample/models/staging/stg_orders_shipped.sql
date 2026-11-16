@@ -6,6 +6,7 @@ select
     unit_price,
     line_total,
     order_date,
-    status
+    status,
+    updated_at
 from {{ ref('stg_orders') }}
 where status = 'shipped'

@@ -6,5 +6,6 @@ select
     unit_price,
     quantity * unit_price as line_total,
     order_date,
-    status
+    status,
+    updated_at
 from {{ source('raw', 'orders') }}

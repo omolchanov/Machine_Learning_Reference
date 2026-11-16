@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: customer_orders
+    description: Customer-level order counts and total spend (full table refresh).
+  - name: fct_orders
+    description: >
+      Order-line fact table. Uses incremental materialization: first run loads all
+      history from stg_orders; later runs append only rows with order_date after the
+      fact table's current max(order_date). Raw orders also carry updated_at for
+      merge-style incrementals when rows can change after insert.
+    columns:
+      - name: order_id
+        description: Primary key for each order line.
+        tests:
+          - unique
+          - not_null
+      - name: order_date
+        description: Watermark column for append incremental filtering in this model.
+      - name: updated_at
+        description: Source change timestamp; use for incremental merge when status or amounts change.

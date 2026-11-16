@@ -12,3 +12,6 @@ sources:
         description: Product catalog (product_id, name, category, unit_price).
       - name: orders
         description: Order line items linked to customers and products.
+        columns:
+          - name: updated_at
+            description: Last change time on the source row (ON UPDATE CURRENT_TIMESTAMP).
