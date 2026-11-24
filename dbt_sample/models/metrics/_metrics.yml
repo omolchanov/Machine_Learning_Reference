@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: metricflow_time_spine
+    description: >
+      Daily spine for MetricFlow time-series metrics (required when semantic models are defined).
+      Refresh with `dbt run --select metricflow_time_spine`. Metric queries via MetricFlow may
+      require a warehouse with full Semantic Layer support (limited on MySQL).
+    config:
+      materialized: table
+    time_spine:
+      standard_granularity_column: date_day
+
+  - name: rpt_metric_values
+    description: >
+      Materialized metric values (semantic layer KPIs as rows). Refreshed on each
+      `dbt run --select +rpt_metric_values`. Scalar metrics have metric_date NULL;
+      daily metrics have one row per order_date. Pair with metrics.yml definitions.
+    config:
+      tags:
+        - metrics_table
+    columns:
+      - name: metric_name
+        description: Matches metrics.yml name (e.g. total_revenue, daily_revenue).
+        tests:
+          - not_null
+      - name: metric_value
+        tests:
+          - not_null
+      - name: refreshed_at
+        description: Timestamp when this table was last built.
+        tests:
+          - not_null

@@ -23,6 +23,15 @@ models:
       +materialized: view
       +tags:
         - feature_store
+    metrics:
+      +tags:
+        - semantic_layer
+      metricflow_time_spine:
+        +materialized: table
+      rpt_metric_values:
+        +materialized: table
+        +tags:
+          - metrics_table
     marts:
       +materialized: table
       fct_orders:

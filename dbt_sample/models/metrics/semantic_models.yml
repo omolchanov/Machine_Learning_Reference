@@ -1,0 +1,70 @@
+version: 2
+
+semantic_models:
+  - name: sm_order_lines
+    label: Order lines
+    description: Line-level facts for revenue and volume metrics.
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: order_date
+    entities:
+      - name: order_line
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+      - name: product
+        type: foreign
+        expr: product_id
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: order_status
+        type: categorical
+        expr: status
+    measures:
+      - name: line_revenue
+        label: Line revenue
+        description: Sum of order line totals (quantity * unit price).
+        agg: sum
+        expr: line_total
+      - name: order_lines
+        label: Order lines
+        description: Count of order line rows.
+        agg: count
+        expr: order_id
+      - name: units_sold
+        label: Units sold
+        agg: sum
+        expr: quantity
+
+  - name: sm_daily_sales
+    label: Daily sales
+    description: Pre-aggregated metrics by calendar day.
+    model: ref('daily_sales')
+    defaults:
+      agg_time_dimension: sales_date
+    entities:
+      - name: sales_day
+        type: primary
+        expr: order_date
+    dimensions:
+      - name: sales_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: order_date
+    measures:
+      - name: daily_revenue_measure
+        label: Daily revenue
+        agg: sum
+        expr: total_revenue
+      - name: daily_order_lines
+        agg: sum
+        expr: order_line_count
+      - name: daily_unique_customers
+        agg: sum
+        expr: unique_customers

@@ -1,0 +1,49 @@
+version: 2
+
+metrics:
+  - name: total_revenue
+    label: Total revenue
+    description: Sum of all order line revenue (fct_orders.line_total).
+    type: simple
+    type_params:
+      measure: line_revenue
+    config:
+      meta:
+        semantic_model: sm_order_lines
+        owner: dbt_sample
+
+  - name: order_line_count
+    label: Order line count
+    description: Number of order lines across the selected dimensions or time range.
+    type: simple
+    type_params:
+      measure: order_lines
+
+  - name: units_sold
+    label: Units sold
+    description: Sum of quantity on order lines.
+    type: simple
+    type_params:
+      measure: units_sold
+
+  - name: daily_revenue
+    label: Daily revenue
+    description: Total revenue by day (from daily_sales mart).
+    type: simple
+    type_params:
+      measure: daily_revenue_measure
+
+  - name: daily_active_customers
+    label: Daily active customers
+    description: Distinct customers with orders on each day (summed from daily_sales).
+    type: simple
+    type_params:
+      measure: daily_unique_customers
+
+  - name: average_order_value
+    label: Average order value
+    description: Total revenue divided by order line count (ratio metric).
+    type: ratio
+    type_params:
+      numerator: total_revenue
+      denominator: order_line_count
