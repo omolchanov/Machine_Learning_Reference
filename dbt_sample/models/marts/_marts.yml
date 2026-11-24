@@ -30,6 +30,32 @@ models:
         description: Watermark column for append incremental filtering in this model.
       - name: updated_at
         description: Source change timestamp; use for incremental merge when status or amounts change.
+  - name: product_revenue
+    description: Product-level units sold and revenue (one row per product).
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+      - name: order_line_count
+        tests:
+          - not_null
+      - name: total_revenue
+        tests:
+          - not_null
+  - name: daily_sales
+    description: Daily order activity and revenue (one row per order_date).
+    columns:
+      - name: order_date
+        tests:
+          - unique
+          - not_null
+      - name: order_line_count
+        tests:
+          - not_null
+      - name: total_revenue
+        tests:
+          - not_null
   - name: demo_macro_rounded_line_totals
     description: >
       Per order line; total uses round_money from local package round_money_pkg
