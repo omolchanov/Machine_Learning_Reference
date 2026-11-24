@@ -7,4 +7,6 @@
 /llm/checkpoints/
 /dbt_sample/target/
 /dbt_sample/logs/
+/dbt_sample/dbt_packages/
+/dbt_sample/package-lock.yml
 /dbt_sample/.user.yml

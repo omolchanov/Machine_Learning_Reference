@@ -30,3 +30,14 @@ models:
         description: Watermark column for append incremental filtering in this model.
       - name: updated_at
         description: Source change timestamp; use for incremental merge when status or amounts change.
+  - name: demo_macro_rounded_line_totals
+    description: >
+      Per order line; total uses round_money from local package round_money_pkg
+      (see packages.yml).
+    columns:
+      - name: id
+        description: Customer id for the order line.
+      - name: product_id
+        description: Product on this order line.
+      - name: total
+        description: round_money_pkg.round_money(quantity * unit_price).
