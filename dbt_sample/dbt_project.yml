@@ -6,6 +6,9 @@ profile: dbt_sample
 model-paths:
   - models
 
+snapshot-paths:
+  - snapshots
+
 clean-targets:
   - target
   - dbt_packages
@@ -14,6 +17,12 @@ models:
   dbt_sample:
     staging:
       +materialized: view
+    scd:
+      +materialized: view
+    features:
+      +materialized: view
+      +tags:
+        - feature_store
     marts:
       +materialized: table
       fct_orders:

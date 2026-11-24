@@ -1,0 +1,10 @@
+version: 2
+
+snapshots:
+  - name: customers_snapshot
+    description: >
+      Canonical dbt snapshot (check strategy). On local MySQL, dbt snapshot may fail
+      with error 1046; use demo_scd2_run.py and scd_sync.py, then ref customers_scd2.
+  - name: products_snapshot
+    description: >
+      Canonical dbt snapshot for products. Same MySQL note as customers_snapshot.

@@ -1,0 +1,95 @@
+version: 2
+
+exposures:
+  - name: ml_feature_store
+    label: ML feature store (batch)
+    type: application
+    description: >
+      Offline feature tables for Python/Spark training and batch scoring.
+      Built by dbt; refresh with `dbt run --select features`. Load via load_features.py.
+    maturity: low
+    owner:
+      name: dbt_sample
+    depends_on:
+      - ref('fs_customer_features')
+      - ref('fs_daily_sales_features')
+      - ref('fs_product_features')
+      - ref('fs_order_line_features')
+      - ref('fs_order_line_pit_features')
+    meta:
+      grain:
+        customer: fs_customer_features
+        date: fs_daily_sales_features
+        product: fs_product_features
+        order_line: fs_order_line_features
+        order_line_pit: fs_order_line_pit_features
+
+models:
+  - name: fs_customer_features
+    description: Customer-level RFM-style features (frequency, monetary) from customer_orders.
+    config:
+      tags: [feature_store, entity_customer]
+    columns:
+      - name: customer_id
+        description: Entity key for customer models.
+        tests:
+          - unique
+          - not_null
+      - name: feat_order_count
+        description: Order line count (frequency).
+        tests:
+          - not_null
+      - name: feat_total_spent
+        description: Sum of line totals (monetary).
+        tests:
+          - not_null
+  - name: fs_daily_sales_features
+    description: One row per calendar day; time-series aggregates.
+    config:
+      tags: [feature_store, entity_date]
+    columns:
+      - name: feat_date
+        tests:
+          - unique
+          - not_null
+      - name: feat_total_revenue
+        tests:
+          - not_null
+  - name: fs_product_features
+    description: Product popularity and revenue signals.
+    config:
+      tags: [feature_store, entity_product]
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+      - name: feat_total_revenue
+        tests:
+          - not_null
+  - name: fs_order_line_features
+    description: Order-line grain for training labels and line-level models.
+    config:
+      tags: [feature_store, entity_order_line]
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: feat_line_total
+        tests:
+          - not_null
+  - name: fs_order_line_pit_features
+    description: >
+      Order lines with current vs pre-change dimensions (SCD2); use for leakage-aware joins.
+      Requires fct_orders_scd_context (run demo_scd2_run.py for SCD demo data).
+    config:
+      tags: [feature_store, entity_order_line, pit]
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null

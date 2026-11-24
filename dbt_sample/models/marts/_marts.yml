@@ -14,6 +14,16 @@ models:
       - name: total_spent
         tests:
           - not_null
+  - name: fct_orders_scd_context
+    description: >
+      Order lines with pre-change customer city and catalog price from SCD2 history
+      (superseded snapshot row when present) versus current staging.
+      Run demo_scd2_run.py; see snapshots/ for canonical dbt snapshot SQL.
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
   - name: fct_orders
     description: >
       Order-line fact table. Uses incremental materialization: first run loads all

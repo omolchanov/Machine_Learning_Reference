@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: scd
+    description: >
+      SCD2 history tables (dbt_sample.customers_snapshot / products_snapshot).
+      On MySQL, maintained by demo_scd2_run.py; see snapshots/ for canonical dbt snapshot SQL.
+    database: dbt_sample
+    schema: dbt_sample
+    tables:
+      - name: customers_snapshot
+      - name: products_snapshot
+
+models:
+  - name: customers_scd2
+    description: Pass-through of customers_snapshot for lineage and ref() in marts.
+  - name: products_scd2
+    description: Pass-through of products_snapshot for lineage and ref() in marts.
